@@ -66,8 +66,8 @@ async def main():
     orchestrator = OrchestratorAgent()
     
     # Şefe tek bir görev/hedef veriyoruz
-    # user_goal = "GitHub reposundaki son değişiklikleri incele, ilgili Jira kartlarını güncelle ve teknik bülteni hazırla."
-    user_goal = "GitHub reposundaki son değişiklikleri incele ve sadece teknik bülteni hazırla. Kesinlikle Jira kartlarında bir güncelleme yapma."
+    user_goal = "GitHub reposundaki son değişiklikleri incele, ilgili Jira kartlarını güncelle ve teknik bülteni hazırla."
+    # user_goal = "GitHub reposundaki son değişiklikleri incele ve sadece teknik bülteni hazırla. Kesinlikle Jira kartlarında bir güncelleme yapma."
     # Kontrolü tamamen şefe devrediyoruz
     result = await orchestrator.run(user_goal)
     
