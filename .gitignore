@@ -1,0 +1,43 @@
+# ─── ÇEVRE DEĞİŞKENLERİ VE GÜVENLİK (EN KRİTİK KISIM) ───
+# Gerçek API key'leri barındıran dosyayı KESİNLİKLE göndermiyoruz.
+.env
+.env.local
+.env.*.local
+
+# ─── PYTHON SİSTEM DOSYALARI ───
+# Python'ın çalışma esnasında ürettiği bytecode dosyaları
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# ─── SANAL ORTAMLAR (VIRTUAL ENVIRONMENTS) ───
+# Kurduğumuz paketlerin (fastapi, httpx vb.) GitHub'a gitmesini engeller
+venv/
+.venv/
+env/
+ENV/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ─── IDE VE EDİTÖR AYARLARI ───
+# Kullandığın editörün lokal ayarları (VS Code, PyCharm vb.)
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# ─── LOGLAR VE GEÇİCİ DOSYALAR ───
+# Uygulamanın üretebileceği log çıktıları
+*.log
+logs/
+.pytest_cache/
+.cache/
+
+# ─── İŞLETİM SİSTEMİ DOSYALARI ───
+.DS_Store
+Thumbs.db
