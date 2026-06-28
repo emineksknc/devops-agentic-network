@@ -41,6 +41,9 @@ Sistemin esnekliğini kanıtlayan, koda dokunmadan sadece `user_goal` değiştir
 ==================================================
 ```
 
+---
+
+
 # 🛠️ Hızlı Başlangıç
 
 ### Sanal ortamı aktif edin
