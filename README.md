@@ -41,12 +41,13 @@ Sistemin esnekliğini kanıtlayan, koda dokunmadan sadece `user_goal` değiştir
 ==================================================
 ```
 
+# 🛠️ Hızlı Başlangıç
 
-# Sanal ortamı aktif edin
-./venv/Scripts/activate
+### Sanal ortamı aktif edin
+```./venv/Scripts/activate```
 
-# Bağımlılıkları yükleyin
-pip install -r requirements.txt
+### Bağımlılıkları yükleyin
+```pip install -r requirements.txt```
 
-# Otonom sistemi tetikleyin
-python -m src.main
+### Otonom sistemi tetikleyin
+```python -m src.main```
