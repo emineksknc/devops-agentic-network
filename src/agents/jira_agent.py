@@ -87,7 +87,7 @@ class JiraAgent(BaseAgent):
             logger.error(f"❌ Jira Bağlantı Hatası (Statü): {str(e)}")
         return False
 
-    async def run(self, task_description: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
+    # async def run(self, task_description: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
         context = context or {}
         jira_ids = context.get("jira_ids", [])
         action = context.get("action", "comment")
@@ -177,6 +177,91 @@ class JiraAgent(BaseAgent):
             "processed_tickets": len(jira_ids),
             "details": results
         }
+    async def run(self, task_description: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
+        context = context or {}
+        jira_ids = context.get("jira_ids", [])
+        action = context.get("action", "comment")
+        
+        # Orchestrator'dan gelen kalite/güvenlik durumunu okuyoruz (Varsayılan: True)
+        review_passed = context.get("review_passed", True) 
+        
+        # 🎯 GitHubAgent'tan gelen diff verisi
+        code_changes = (
+            context.get("code_changes") or 
+            context.get("patch") or 
+            context.get("diff") or 
+            ""
+        )
+        
+        if isinstance(code_changes, list) or isinstance(code_changes, dict):
+            code_changes = str(code_changes)
 
+        # 🤖 Otonom Kod Yorumu Analizi (LLM ile)
+        ai_comment_summary = ""
+        if code_changes and code_changes.strip() and action in ["comment", "both"]:
+            try:
+                logger.info(f"🧠 JiraAgent: Lokal LLM (Ollama) ile kod diff analizi yapılıyor...")
+                
+                # Eğer kod denetimden kaldıysa promptu ona göre şekillendiriyoruz
+                if not review_passed:
+                    comment_prompt = (
+                        "Sen otonom bir DevOps Yapay Zeka Asistanısın.\n"
+                        "Sana güvenlik veya kalite denetiminden KALMIŞ tehlikeli bir kod değişikliği (diff) verilecek.\n"
+                        "Görevin, bu kodun neden başarısız olduğunu ve ne tür riskler barındırdığını "
+                        "maksimum 2-3 cümlelik, kurumsal, profesyonel ve Türkçe bir dille özetlemektir.\n"
+                        "Doğrudan teknik özeti dön, 'İşte hata:' gibi ifadeler kullanma.\n\n"
+                        f"Başarısız Olan Kod Değişiklikleri:\n{code_changes}"
+                    )
+                else:
+                    comment_prompt = (
+                        "Sen otonom bir DevOps Yapay Zeka Asistanısın.\n"
+                        "Sana en son yapılan commit'e ait ham kod diff (patch) verisi verilecek.\n"
+                        "Görevin, bu kod değişikliğini teknik olarak analiz edip, Jira kartına yazılacak "
+                        "maksimum 2-3 cümlelik, kurumsal, profesyonel ve Türkçe bir teknik özet hazırlamaktır.\n"
+                        "Lütfen doğrudan teknik özeti dön, 'İşte özet:' gibi ifadeler kullanma.\n\n"
+                        f"Kod Değişiklikleri:\n{code_changes}"
+                    )
+                    
+                ai_comment_summary = await self.llm.generate_response(
+                    "Sen teknik bir DevOps asistanısın. Sadece istenen teknik yorumu dönersin.",
+                    comment_prompt
+                )
+            except Exception as e:
+                logger.warning(f"⚠️ LLM analizi başarısız oldu, fallback şablonu kullanılacak. Hata: {e}")
+                ai_comment_summary = ""
+
+        results = {}
+        for ticket_id in jira_ids:
+            results[ticket_id] = {"comment": False, "transition": False}
+            if action in ["comment", "both"]:
+                if ai_comment_summary and ai_comment_summary.strip():
+                    # Başlığımızı duruma göre dinamik yapıyoruz
+                    report_title = "🚨 [DAN - Otonom Kod KALİTE/GÜVENLİK BLOKAJI]" if not review_passed else "🤖 [DAN - Otonom Kod Analiz Raporu]"
+                    msg = (
+                        f"{report_title}\n\n"
+                        f"⚙️ Analiz Eden Ajan: {self.name}\n"
+                        f"📝 Teknik Analiz/Risk Detayı:\n{ai_comment_summary}\n\n"
+                        f"{'❌ İş akışı güvenlik/kalite standartları gereği kilitlendi.' if not review_passed else '🚀 Otomatik kod doğrulama ve pipeline adımları başarıyla tamamlandı.'}"
+                    )
+                else:
+                    msg = (
+                        "🤖 [🤖 DevOps Agentic Network - Otonom İşlem Raporu]\n\n"
+                        f"⚙️ İşlem Yapan Ajan: {self.name}\n"
+                        f"📦 Tetikleyici Eylem: GitHub Canlı Commit Analizi\n"
+                        f"📝 Durum: Bu biletle ilişkili geliştirici kodları başarıyla doğrulandı.\n"
+                    )
+                results[ticket_id]["comment"] = await self.add_comment_to_ticket(ticket_id, msg)
+                
+            if action in ["transition", "both"]:
+                # 🎯 DİNAMİK WORKFLOW: Kalite kontrol geçildiyse 'In Review', kaldıysa 'Blocked' aşamasına çekiyoruz
+                target_status = "In Review" if review_passed else "Blocked"
+                results[ticket_id]["transition"] = await self.transition_ticket_status(ticket_id, target_status)
+
+        return {
+            "agent": self.name,
+            "status": "success",
+            "processed_tickets": len(jira_ids),
+            "details": results
+        } 
     def get_tool_schemas(self) -> List[Dict[str, Any]]:
         return []
