@@ -3,7 +3,7 @@ from typing import List, Dict, Any
 import httpx
 from src.core.base_agent import BaseAgent
 from src.config.settings import settings
-from src.core.llm_client import LLMClient # LLMClient entegrasyonu
+from src.core.llm_client import LLMClient
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("JiraAgent")
@@ -11,17 +11,14 @@ logger = logging.getLogger("JiraAgent")
 class JiraAgent(BaseAgent):
     def __init__(self, name: str = "JiraAgent", model_client: Any = None):
         super().__init__(name, model_client)
-        # Eğer dışarıdan bir model_client verilmediyse varsayılan LLMClient'ı bağlıyoruz
         self.llm = model_client or LLMClient()
         self.register_tool("add_comment_to_ticket", self.add_comment_to_ticket)
         self.register_tool("transition_ticket_status", self.transition_ticket_status)
 
     def _get_auth(self) -> httpx.BasicAuth:
-        """Jira API için .env'deki bilgilerle kimlik doğrulama objesi üretir."""
         return httpx.BasicAuth(username=settings.JIRA_USER_EMAIL, password=settings.JIRA_API_TOKEN)
 
     async def add_comment_to_ticket(self, ticket_id: str, comment_text: str) -> bool:
-        """Jira biletine canlı API üzerinden yorum ekler."""
         url = f"{settings.JIRA_DOMAIN}/rest/api/3/issue/{ticket_id}/comment"
         headers = {
             "Accept": "application/json",
@@ -54,7 +51,6 @@ class JiraAgent(BaseAgent):
         return False
 
     async def transition_ticket_status(self, ticket_id: str, target_status: str) -> bool:
-        """Jira biletinin statüsünü canlı API üzerinden günceller."""
         url = f"{settings.JIRA_DOMAIN}/rest/api/3/issue/{ticket_id}/transitions"
         headers = {"Accept": "application/json", "Content-Type": "application/json"}
         
@@ -95,19 +91,49 @@ class JiraAgent(BaseAgent):
         context = context or {}
         jira_ids = context.get("jira_ids", [])
         action = context.get("action", "comment")
-        code_changes = context.get("code_changes", "") # 🎯 GitHubAgent'tan gelen diff verisi
         
+        # 🎯 SAVUNMA HATTI: GitHubAgent'ın dönebileceği tüm olası anahtarları kontrol ediyoruz
+        code_changes = (
+            context.get("code_changes") or 
+            context.get("patch") or 
+            context.get("diff") or 
+            ""
+        )
+        
+        # Eğer yukarıdaki anahtarlardan biri bile dolu geldiyse ama string değilse string'e zorla
+        if isinstance(code_changes, list) or isinstance(code_changes, dict):
+            code_changes = str(code_changes)
+
         # 🤖 Otonom Kod Yorumu Analizi (LLM ile)
         ai_comment_summary = ""
-        if code_changes and action in ["comment", "both"]:
+        if code_changes and code_changes.strip() and action in ["comment", "both"]:
             try:
                 logger.info(f"🧠 JiraAgent: Lokal LLM (Ollama) ile kod diff analizi yapılıyor...")
+                # comment_prompt = (
+                #     "Sen otonom bir DevOps Yapay Zeka Asistanısın.\n"
+                #     "Sana en son yapılan commit'e ait ham kod diff (patch) verisi verilecek.\n"
+                #     "Görevin, bu kod değişikliğini teknik olarak analiz edip, Jira kartına yazılacak "
+                #     "maksimum 2-3 cümlelik, kurumsal, profesyonel ve Türkçe bir teknik özet hazırlamaktır.\n"
+                #     "Lütfen doğrudan teknik özeti dön, 'İşte özet:' gibi ifadeler kullanma.\n\n"
+                #     f"Kod Değişiklikleri:\n{code_changes}"
+                # )
+
+                # comment_prompt = (
+                #     "Sen otonom bir DevOps Yapay Zeka Asistanısın.\n"
+                #     "Sana, bir geliştiricinin tamamladığı göreve ait ham kod diff (patch) verisi verilecek.\n"
+                #     "Görevin, BU GELİŞTİRİCİNİN YAPTIĞI değişiklikleri analiz etmektir. Kendi mimarinden veya ajan yapılarından bahsetme.\n"
+                #     "Sadece geliştiricinin hangi fonksiyonu/özelliği eklediğini veya düzelttiğini maksimum 2-3 cümlelik, "
+                #     "kurumsal, profesyonel ve Türkçe bir teknik özetle Jira kartına yaz.\n"
+                #     "Doğrudan teknik özeti dön, 'İşte özet:' veya 'Analiz edilen kod:' gibi ifadeler kullanma.\n\n"
+                #     f"Geliştirici Kod Değişiklikleri:\n{code_changes}"
+                # )
                 comment_prompt = (
                     "Sen otonom bir DevOps Yapay Zeka Asistanısın.\n"
-                    "Sana en son yapılan commit'e ait ham kod diff (patch) verisi verilecek.\n"
-                    "Görevin, bu kod değişikliğini teknik olarak analiz edip, Jira kartına yazılacak "
-                    "maksimum 2-3 cümlelik, kurumsal, profesyonel ve Türkçe bir teknik özet hazırlamaktır.\n"
-                    "Lütfen doğrudan teknik özeti dön, 'İşte özet:' gibi ifadeler kullanma.\n\n"
+                    "Sana, bir geliştiricinin tamamladığı göreve ait ham kod diff (patch) verisi verilecek.\n"
+                    "Görevin, BU DIFF İÇERİSİNDEKİ TÜM DEĞİŞİKLİKLERİ (etkilenen tüm dosyaları ve fonksiyonları) eksiksiz analiz etmektir.\n"
+                    "Yazacağımı teknik özette asla kendi iç mekanizmandan, LLM süreçlerinden veya ajan yapılarından ('LLM ile analiz yapılıyor', 'Ajan tetiklendi' vb.) bahsetme.\n"
+                    "Sadece geliştiricinin hangi dosyalara hangi özellikleri/parametreleri eklediğini kurumsal, profesyonel ve Türkçe bir dille özetle.\n"
+                    "Doğrudan teknik özeti dön, 'İşte özet:' gibi giriş ifadeleri kullanma.\n\n"
                     f"Kod Değişiklikleri:\n{code_changes}"
                 )
                 ai_comment_summary = await self.llm.generate_response(
@@ -117,13 +143,15 @@ class JiraAgent(BaseAgent):
             except Exception as e:
                 logger.warning(f"⚠️ LLM analizi başarısız oldu, fallback şablonu kullanılacak. Hata: {e}")
                 ai_comment_summary = ""
+        else:
+            # 🎯 Hata ayıklamayı kolaylaştırmak için log ekledik
+            logger.warning("⚠️ JiraAgent'a herhangi bir kod değişiklik verisi (diff/patch) ulaşmadı veya boş geldi!")
 
         results = {}
         for ticket_id in jira_ids:
             results[ticket_id] = {"comment": False, "transition": False}
             if action in ["comment", "both"]:
-                # 🎯 Eğer LLM analiz yaptıysa onu ekliyoruz, yapamadıysa fallback şablonuna düşüyoruz
-                if ai_comment_summary:
+                if ai_comment_summary and ai_comment_summary.strip():
                     msg = (
                         "🤖 [DAN - Otonom Kod Analiz Raporu]\n\n"
                         f"⚙️ Analiz Eden Ajan: {self.name}\n"
@@ -134,9 +162,9 @@ class JiraAgent(BaseAgent):
                     msg = (
                         "🤖 [🤖 DevOps Agentic Network - Otonom İşlem Raporu]\n\n"
                         f"⚙️ İşlem Yapan Ajan: {self.name}\n"
-                        "📦 Tetikleyici Eylem: GitHub Canlı Commit Analizi\n"
-                        "📝 Durum: Bu biletle ilişkili geliştirici kodları başarıyla doğrulandı ve ana repoya pushlandı.\n\n"
-                        "🚀 Otomatik analiz başarılı. Pipeline adımları güvenle tamamlandı."
+                        f"📦 Tetikleyici Eylem: GitHub Canlı Commit Analizi\n"
+                        f"📝 Durum: Bu biletle ilişkili geliştirici kodları başarıyla doğrulandı ve ana repoya pushlandı.\n\n"
+                        f"🚀 Otomatik analiz başarılı. Pipeline adımları güvenle tamamlandı."
                     )
                 results[ticket_id]["comment"] = await self.add_comment_to_ticket(ticket_id, msg)
                 
