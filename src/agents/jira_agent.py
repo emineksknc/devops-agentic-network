@@ -3,6 +3,7 @@ from typing import List, Dict, Any
 import httpx
 from src.core.base_agent import BaseAgent
 from src.config.settings import settings
+from src.core.llm_client import LLMClient # LLMClient entegrasyonu
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("JiraAgent")
@@ -10,6 +11,8 @@ logger = logging.getLogger("JiraAgent")
 class JiraAgent(BaseAgent):
     def __init__(self, name: str = "JiraAgent", model_client: Any = None):
         super().__init__(name, model_client)
+        # Eğer dışarıdan bir model_client verilmediyse varsayılan LLMClient'ı bağlıyoruz
+        self.llm = model_client or LLMClient()
         self.register_tool("add_comment_to_ticket", self.add_comment_to_ticket)
         self.register_tool("transition_ticket_status", self.transition_ticket_status)
 
@@ -57,8 +60,6 @@ class JiraAgent(BaseAgent):
         
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                # Önce biletin kullanılabilir transition (geçiş) ID'lerini Jira'dan sorguluyoruz
-                # Çünkü Jira her projede 'In Review' veya 'Done' için farklı geçiş ID'leri atayabilir.
                 logger.info(f"📡 Jira Canlı API: {ticket_id} için kullanılabilir geçişler sorgulanıyor...")
                 transitions_resp = await client.get(url, headers=headers, auth=self._get_auth())
                 
@@ -69,7 +70,6 @@ class JiraAgent(BaseAgent):
                 transitions_data = transitions_resp.json()
                 transition_id = None
                 
-                # Kullanıcının hedeflediği statüyü Jira'daki isimlerle eşleştiriyoruz (Case-insensitive)
                 for t in transitions_data.get("transitions", []):
                     if target_status.lower() in t.get("name", "").lower():
                         transition_id = t.get("id")
@@ -79,7 +79,6 @@ class JiraAgent(BaseAgent):
                     logger.warning(f"⚠️ Jira'da '{target_status}' isminde bir geçiş aşaması bulunamadı.")
                     return False
 
-                # Bulunan dinamik ID ile statü değişikliğini tetikliyoruz
                 payload = {"transition": {"id": transition_id}}
                 response = await client.post(url, json=payload, headers=headers, auth=self._get_auth())
                 
@@ -96,22 +95,52 @@ class JiraAgent(BaseAgent):
         context = context or {}
         jira_ids = context.get("jira_ids", [])
         action = context.get("action", "comment")
+        code_changes = context.get("code_changes", "") # 🎯 GitHubAgent'tan gelen diff verisi
         
+        # 🤖 Otonom Kod Yorumu Analizi (LLM ile)
+        ai_comment_summary = ""
+        if code_changes and action in ["comment", "both"]:
+            try:
+                logger.info(f"🧠 JiraAgent: Lokal LLM (Ollama) ile kod diff analizi yapılıyor...")
+                comment_prompt = (
+                    "Sen otonom bir DevOps Yapay Zeka Asistanısın.\n"
+                    "Sana en son yapılan commit'e ait ham kod diff (patch) verisi verilecek.\n"
+                    "Görevin, bu kod değişikliğini teknik olarak analiz edip, Jira kartına yazılacak "
+                    "maksimum 2-3 cümlelik, kurumsal, profesyonel ve Türkçe bir teknik özet hazırlamaktır.\n"
+                    "Lütfen doğrudan teknik özeti dön, 'İşte özet:' gibi ifadeler kullanma.\n\n"
+                    f"Kod Değişiklikleri:\n{code_changes}"
+                )
+                ai_comment_summary = await self.llm.generate_response(
+                    "Sen teknik bir DevOps asistanısın. Sadece istenen teknik yorumu dönersin.",
+                    comment_prompt
+                )
+            except Exception as e:
+                logger.warning(f"⚠️ LLM analizi başarısız oldu, fallback şablonu kullanılacak. Hata: {e}")
+                ai_comment_summary = ""
+
         results = {}
         for ticket_id in jira_ids:
             results[ticket_id] = {"comment": False, "transition": False}
             if action in ["comment", "both"]:
-                # Ajanın kimliğini ve detaylarını belirten şık bir yorum şablonu
-                msg = (
-                    "🤖 [🤖 DevOps Agentic Network - Otonom İşlem Raporu]\n\n"
-                    f"⚙️ İşlem Yapan Ajan: {self.name}\n"
-                    "📦 Tetikleyici Eylem: GitHub Canlı Commit Analizi\n"
-                    "📝 Durum: Bu biletle ilişkili geliştirici kodları başarıyla doğrulandı ve ana repoya pushlandı.\n\n"
-                    "🚀 Otomatik analiz başarılı. Pipeline adımları güvenle tamamlandı."
-                )
+                # 🎯 Eğer LLM analiz yaptıysa onu ekliyoruz, yapamadıysa fallback şablonuna düşüyoruz
+                if ai_comment_summary:
+                    msg = (
+                        "🤖 [DAN - Otonom Kod Analiz Raporu]\n\n"
+                        f"⚙️ Analiz Eden Ajan: {self.name}\n"
+                        f"📝 Kod Değişiklik Özeti:\n{ai_comment_summary}\n\n"
+                        "🚀 Otomatik kod doğrulama ve pipeline adımları başarıyla tamamlandı."
+                    )
+                else:
+                    msg = (
+                        "🤖 [🤖 DevOps Agentic Network - Otonom İşlem Raporu]\n\n"
+                        f"⚙️ İşlem Yapan Ajan: {self.name}\n"
+                        "📦 Tetikleyici Eylem: GitHub Canlı Commit Analizi\n"
+                        "📝 Durum: Bu biletle ilişkili geliştirici kodları başarıyla doğrulandı ve ana repoya pushlandı.\n\n"
+                        "🚀 Otomatik analiz başarılı. Pipeline adımları güvenle tamamlandı."
+                    )
                 results[ticket_id]["comment"] = await self.add_comment_to_ticket(ticket_id, msg)
+                
             if action in ["transition", "both"]:
-                # Kartı board'daki gerçek duruma göre 'Devam Ediyor' veya 'İnceleme' aşamasına çekmeyi dener
                 results[ticket_id]["transition"] = await self.transition_ticket_status(ticket_id, "In Review")
 
         return {
