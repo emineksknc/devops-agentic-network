@@ -1,9 +1,11 @@
 import re
+import json
 import logging
 from typing import List, Dict, Any
 import httpx
 from src.core.base_agent import BaseAgent
 from src.config.settings import settings
+from src.core.llm_client import LLMClient
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("GitHubAgent")
@@ -11,6 +13,7 @@ logger = logging.getLogger("GitHubAgent")
 class GitHubAgent(BaseAgent):
     def __init__(self, name: str = "GitHubAgent", model_client: Any = None):
         super().__init__(name, model_client)
+        self.llm = model_client or LLMClient()
         self.register_tool("fetch_commits", self.fetch_commits)
         self.register_tool("fetch_commit_diff", self.fetch_commit_diff)
         self.register_tool("extract_jira_ids", self.extract_jira_ids)
@@ -90,14 +93,70 @@ class GitHubAgent(BaseAgent):
             
         return ""
 
-    def extract_jira_ids(self, commit_messages: List[str]) -> List[str]:
-        jira_pattern = r"(SCRUM-\d+)"
-        jira_ids = []
+    async def extract_jira_ids(self, commit_messages: List[str]) -> List[str]:
+        """
+        🎯 HİBRİT YAKALAMA:
+        1. Önce hızlı/ucuz regex ile standart formatı ("PROJKEY-123") dener.
+        2. Regex hiçbir eşleşme bulamazsa (örn. "fixes #123", "closes ticket 45" gibi
+           serbest formatlı mesajlar), lokal LLM'e (Ollama) semantik olarak sorar.
+        Bu sayede hem hızlı/deterministik yol korunur hem de esnek formatlar kaçırılmaz.
+        """
+        project_key = getattr(settings, "JIRA_PROJECT_KEY", "SCRUM")
+        jira_pattern = rf"({re.escape(project_key)}-\d+)"
+
+        jira_ids: List[str] = []
+        unmatched_messages: List[str] = []
+
         for msg in commit_messages:
             matches = re.findall(jira_pattern, msg, re.IGNORECASE)
             if matches:
                 jira_ids.extend([match.upper() for match in matches])
-        return list(set(jira_ids))
+            else:
+                unmatched_messages.append(msg)
+
+        jira_ids = list(set(jira_ids))
+
+        # 🧠 Fallback: regex hiçbir şey yakalayamadıysa semantik analiz dene
+        if not jira_ids and unmatched_messages:
+            logger.info(
+                "⚠️ Regex ile bilet numarası bulunamadı, LLM ile semantik analiz deneniyor..."
+            )
+            semantic_ids = await self._extract_jira_ids_semantic(unmatched_messages, project_key)
+            jira_ids = list(set(semantic_ids))
+
+        return jira_ids
+
+    async def _extract_jira_ids_semantic(self, commit_messages: List[str], project_key: str) -> List[str]:
+        """
+        Regex'in kaçırdığı serbest formatlı commit mesajlarından (örn. "fixes #123",
+        "closes ticket 45") lokal LLM ile bilet referansı çıkarmaya çalışır.
+        """
+        joined_messages = "\n".join(f"- {msg}" for msg in commit_messages)
+        system_prompt = (
+            "Sen bir DevOps asistanısın. Sadece istenen JSON formatını dönersin, "
+            "başka hiçbir açıklama yazmazsın."
+        )
+        user_prompt = (
+            f"Aşağıda bir geliştiricinin commit mesajları listelenmiştir. Proje anahtarı '{project_key}'.\n"
+            "Bu mesajların içinde (varsa) bir Jira/iş bileti referansı olabilir; bu referans "
+            f"'{project_key}-123' formatında açıkça yazılmamış olabilir "
+            "(örn. 'fixes #123', 'closes ticket 45', 'SCRUM 123 çözüldü' gibi serbest ifadeler).\n"
+            f"Eğer bir sayı bulursan, bunu '{project_key}-<sayı>' formatına çevirerek dön.\n"
+            "Emin olmadığın veya bilet referansı olmayan mesajları atla, uydurma bilet numarası üretme.\n\n"
+            "SADECE şu JSON formatında dön:\n"
+            '{"jira_ids": ["PROJKEY-123", "PROJKEY-45"]}\n\n'
+            f"Commit Mesajları:\n{joined_messages}"
+        )
+
+        try:
+            llm_response = await self.llm.generate_response(system_prompt, user_prompt)
+            clean_json = llm_response.replace("```json", "").replace("```", "").strip()
+            parsed = json.loads(clean_json)
+            ids = parsed.get("jira_ids", [])
+            return [str(i).upper() for i in ids if isinstance(i, (str, int))]
+        except Exception as e:
+            logger.warning(f"⚠️ Semantik bilet çıkarımı başarısız oldu: {e}")
+            return []
 
     async def run(self, task_description: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
         context = context or {}
@@ -110,7 +169,7 @@ class GitHubAgent(BaseAgent):
             
         commits = await self.fetch_commits(owner, repo, count)
         messages = [c["message"] for c in commits]
-        jira_ids = self.extract_jira_ids(messages)
+        jira_ids = await self.extract_jira_ids(messages)
         
         # 🎯 En son commit'in kod diff'ini (değişikliklerini) çekiyoruz
         code_changes = ""

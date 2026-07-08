@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     JIRA_API_TOKEN: str = "mock_jira_token"
     JIRA_DOMAIN: str = "https://mock.atlassian.net"
     JIRA_USER_EMAIL: str = "mock@example.com"
+    JIRA_PROJECT_KEY: str = "mock_project_key"
     LLM_API_KEY: str = "mock_key"
     
     # 🎯 EKSİK OLAN ALAN BURASIYDI: Pydantic'e bu alanı tanıtıyoruz
