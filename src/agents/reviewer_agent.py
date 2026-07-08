@@ -49,29 +49,35 @@ class ReviewerAgent(BaseAgent):
         )
 
         try:
+            raise Exception("TEST: Reviewer fail-closed senaryosu simüle ediliyor")  # 🧪 GEÇİCİ TEST SATIRI - sonra sil
             llm_response = await self.llm.generate_response(
                 "Sen sadece JSON formatında çıktı üreten profesyonel bir kod denetçisisin.",
-                review_prompt
+                review_prompt,
+                response_format="json"
             )
-            
+
             # Ollama bazen markdown kod blokları (```json ... ```) içine alabilir, onları temizleyelim
             clean_json = llm_response.replace("```json", "").replace("```", "").strip()
             review_result = json.loads(clean_json)
-            
+
             logger.info(f"✅ {self.name} analizi tamamladı. Sonuç: {review_result.get('review_status')}")
             return {
                 "agent": self.name,
-                "review_status": review_result.get("review_status", "PASSED"),
+                "review_status": review_result.get("review_status", "FAILED"),
                 "review_comment": review_result.get("review_comment", "Kod analizi başarıyla tamamlandı.")
             }
 
         except Exception as e:
             logger.error(f"❌ ReviewerAgent LLM analizi veya JSON parse sırasında hata aldı: {e}")
-            # Güvenli mod fallback: Hata durumunda pipeline'ı tıkamamak için PASSED geçiyoruz
+            # 🎯 FAIL-CLOSED: Denetim mekanizması çalışmazsa kodu "güvenli" saymıyoruz.
+            # PASSED yerine FAILED dönüyoruz ki Orchestrator akışı durdursun ve
+            # Jira'yı "Blocked/manuel inceleme" durumuna çeksin. Bir güvenlik denetiminin
+            # sessizce başarısız olup her şeyi geçirmesi, hiç denetim yapmamaktan daha kötüdür.
             return {
                 "agent": self.name,
-                "review_status": "PASSED",
-                "review_comment": "Otonom denetim motorunda teknik bir aksaklık yaşandı, manuel kontrol önerilir."
+                "review_status": "FAILED",
+                "review_comment": "Otonom denetim motoru bir yanıt üretemedi (LLM boş/bozuk çıktı döndü). "
+                                   "Güvenlik nedeniyle bu değişiklik manuel incelemeye düşürüldü."
             }
 
     def get_tool_schemas(self) -> List[Dict[str, Any]]:
