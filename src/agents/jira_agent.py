@@ -18,8 +18,12 @@ class JiraAgent(BaseAgent):
     def _get_auth(self) -> httpx.BasicAuth:
         return httpx.BasicAuth(username=settings.JIRA_USER_EMAIL, password=settings.JIRA_API_TOKEN)
 
+    def _base_url(self) -> str:
+        # settings.JIRA_DOMAIN sonunda "/" olsa bile çift slash oluşmasını engeller
+        return settings.JIRA_DOMAIN.rstrip("/")
+
     async def add_comment_to_ticket(self, ticket_id: str, comment_text: str) -> bool:
-        url = f"{settings.JIRA_DOMAIN}/rest/api/3/issue/{ticket_id}/comment"
+        url = f"{self._base_url()}/rest/api/3/issue/{ticket_id}/comment"
         headers = {
             "Accept": "application/json",
             "Content-Type": "application/json"
@@ -51,7 +55,7 @@ class JiraAgent(BaseAgent):
         return False
 
     async def transition_ticket_status(self, ticket_id: str, target_status: str) -> bool:
-        url = f"{settings.JIRA_DOMAIN}/rest/api/3/issue/{ticket_id}/transitions"
+        url = f"{self._base_url()}/rest/api/3/issue/{ticket_id}/transitions"
         headers = {"Accept": "application/json", "Content-Type": "application/json"}
         
         try:
