@@ -22,6 +22,36 @@ class JiraAgent(BaseAgent):
         # settings.JIRA_DOMAIN sonunda "/" olsa bile çift slash oluşmasını engeller
         return settings.JIRA_DOMAIN.rstrip("/")
 
+    async def ticket_exists(self, ticket_id: str) -> bool:
+        """
+        🛡️ GUARDRAIL: İşlem yapmadan önce biletin gerçekten Jira'da var olduğunu doğrular.
+        Bu, GitHubAgent'ın LLM fallback yolunun (semantik bilet çıkarımı) olası bir
+        halüsinasyon sonucu var olmayan bir bilet numarası üretmesine karşı korur.
+        """
+        url = f"{self._base_url()}/rest/api/3/issue/{ticket_id}?fields=key"
+        headers = {"Accept": "application/json"}
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url, headers=headers, auth=self._get_auth())
+                if response.status_code == 200:
+                    return True
+                elif response.status_code == 404:
+                    logger.info(f"ℹ️ {ticket_id} Jira'da bulunamadı (404) - gerçekten mevcut değil.")
+                    return False
+                else:
+                    logger.warning(
+                        f"⚠️ {ticket_id} doğrulanırken beklenmeyen durum kodu: "
+                        f"{response.status_code} - {response.text[:200]}"
+                    )
+                    return False
+        except Exception as e:
+            # 🔍 Teşhis için tam hata tipini ve mesajını logluyoruz (str(e) bazen boş kalabiliyor)
+            logger.error(
+                f"❌ Jira Bağlantı Hatası (Bilet Doğrulama) [{type(e).__name__}]: {repr(e)}"
+            )
+            # Bağlantı hatasında da güvenli tarafta kalıyoruz: bilet yok say, işlem yapma
+            return False
+
     async def add_comment_to_ticket(self, ticket_id: str, comment_text: str) -> bool:
         url = f"{self._base_url()}/rest/api/3/issue/{ticket_id}/comment"
         headers = {
@@ -146,6 +176,18 @@ class JiraAgent(BaseAgent):
 
         results = {}
         for ticket_id in jira_ids:
+            # 🛡️ GUARDRAIL: İşlem yapmadan önce biletin gerçekten var olduğunu doğrula.
+            # LLM fallback yolu (semantik bilet çıkarımı) yanlışlıkla var olmayan bir
+            # bilet numarası üretmiş olabilir; bu durumda sessizce atla, hata verip
+            # tüm akışı çökertme.
+            if not await self.ticket_exists(ticket_id):
+                logger.warning(
+                    f"⚠️ {ticket_id} Jira'da bulunamadı (muhtemelen LLM'in ürettiği "
+                    f"geçersiz bir referans). Bu bilet atlanıyor, işlem yapılmayacak."
+                )
+                results[ticket_id] = {"comment": False, "transition": False, "skipped_reason": "ticket_not_found"}
+                continue
+
             results[ticket_id] = {"comment": False, "transition": False}
             if action in ["comment", "both"]:
                 if ai_comment_summary and ai_comment_summary.strip():
