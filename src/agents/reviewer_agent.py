@@ -49,7 +49,6 @@ class ReviewerAgent(BaseAgent):
         )
 
         try:
-            raise Exception("TEST: Reviewer fail-closed senaryosu simüle ediliyor")  # 🧪 GEÇİCİ TEST SATIRI - sonra sil
             llm_response = await self.llm.generate_response(
                 "Sen sadece JSON formatında çıktı üreten profesyonel bir kod denetçisisin.",
                 review_prompt,
