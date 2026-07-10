@@ -41,19 +41,14 @@ class ReviewerAgent(BaseAgent):
             "2. Kalite Riski: Bariz mantık hataları, sonsuz döngüler veya tehlikeli (try-except bloğuna alınmamış) operasyonlar var mı?\n\n"
             "Kritik bir risk bulursan 'review_status' değerini 'FAILED' yap.\n"
             "Kod temiz ve güvenli görünüyorsa 'review_status' değerini 'PASSED' yap.\n\n"
-            "⚠️ SPESİFİKLİK ZORUNLULUĞU: 'review_comment' asla genel/soyut bir cümle olamaz "
-            "(örn. 'hassas bilgiler güvenli depolanmalı' gibi ifadeler YASAK). Her zaman şunları içermelidir:\n"
-            "  a) Riskin bulunduğu TAM DOSYA ADI (diff başlığındaki '--- Dosya: ... ---' değerinden aynen al),\n"
-            "  b) Mümkünse ilgili değişken/fonksiyon adı veya satırın kısa bir alıntısı,\n"
-            "  c) Riskin somut olarak NE OLDUĞU (örn. 'X dosyasında Y adlı değişkende API anahtarı düz metin "
-            "olarak tanımlanmış' gibi, genel bir güvenlik tavsiyesi değil, gözlemlenen gerçek satır bazlı tespit).\n"
-            "Eğer diff'te birden fazla dosya varsa ve risk sadece birinde ise, SADECE o dosyayı işaret et, "
-            "diğerlerini suçlama.\n\n"
             "⚠️ KESİN KURAL: Yanıtını SADECE ve SADECE aşağıdaki JSON formatında dön. Başka hiçbir açıklama veya metin yazma:\n"
             "{\n"
             "  \"review_status\": \"PASSED\" veya \"FAILED\",\n"
-            "  \"review_comment\": \"Yukarıdaki spesifiklik kurallarına uyan, dosya adı ve somut tespit içeren "
-            "2-4 cümlelik Türkçe profesyonel teknik geri bildirim\"\n"
+            "  \"affected_file\": \"Riskin bulunduğu dosyanın TAM ADI (diff başlığındaki '--- Dosya: ... ---' "
+            "değerinden aynen kopyala). PASSED ise veya risk belirli bir dosyaya ait değilse null yaz.\",\n"
+            "  \"affected_symbol\": \"Riskle ilgili değişken/fonksiyon/satır kısa alıntısı. Yoksa null yaz.\",\n"
+            "  \"review_comment\": \"1-2 cümlelik Türkçe teknik tespit. affected_file ve affected_symbol "
+            "alanlarında verdiğin bilgiyi TEKRARLAMA, sadece riskin NEDEN sorun olduğunu açıkla.\"\n"
             "}\n\n"
             f"Denetlenecek Kod Değişiklikleri:\n{code_changes}"
         )
@@ -69,11 +64,27 @@ class ReviewerAgent(BaseAgent):
             clean_json = llm_response.replace("```json", "").replace("```", "").strip()
             review_result = json.loads(clean_json)
 
-            logger.info(f"✅ {self.name} analizi tamamladı. Sonuç: {review_result.get('review_status')}")
+            status = review_result.get("review_status", "FAILED")
+            affected_file = review_result.get("affected_file")
+            affected_symbol = review_result.get("affected_symbol")
+            raw_comment = review_result.get("review_comment", "Kod analizi başarıyla tamamlandı.")
+
+            # 🎯 Yapısal alanları (affected_file/affected_symbol) serbest metinle birleştirerek
+            # her zaman dosya adı içeren, izlenebilir bir yorum üretiyoruz. Modelin serbest metinde
+            # spesifikliği "unutması" ihtimaline karşı, dosya bilgisini biz garantiye alıyoruz.
+            if affected_file and str(affected_file).lower() != "null":
+                location_prefix = f"📄 {affected_file}"
+                if affected_symbol and str(affected_symbol).lower() != "null":
+                    location_prefix += f" ({affected_symbol})"
+                composed_comment = f"{location_prefix}: {raw_comment}"
+            else:
+                composed_comment = raw_comment
+
+            logger.info(f"✅ {self.name} analizi tamamladı. Sonuç: {status}")
             return {
                 "agent": self.name,
-                "review_status": review_result.get("review_status", "FAILED"),
-                "review_comment": review_result.get("review_comment", "Kod analizi başarıyla tamamlandı.")
+                "review_status": status,
+                "review_comment": composed_comment
             }
 
         except Exception as e:
