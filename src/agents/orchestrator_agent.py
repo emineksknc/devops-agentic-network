@@ -106,6 +106,14 @@ class OrchestratorAgent(BaseAgent):
                     }
                 
                 await self.jira_worker.run("Update", context=jira_context)
+
+            elif step == "jira_agent" and not context.get("jira_ids"):
+                # 🔍 Gözlemlenebilirlik: plan jira_agent içerse bile bilet bulunamadıysa
+                # bunu açıkça logluyoruz, aksi halde adım sessizce/görünmez şekilde atlanıyordu.
+                logger.info(
+                    "ℹ️ jira_agent planlanmıştı ancak hiçbir Jira bilet ID'si bulunamadığı "
+                    "için bu adım atlandı (regex ve LLM fallback ikisi de sonuçsuz kaldı)."
+                )
                 
             # 4. REPORTER ADIMI
             elif step == "reporter_agent" and context.get("raw_commits") and review_passed:
