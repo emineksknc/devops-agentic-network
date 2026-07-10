@@ -152,8 +152,29 @@ class GitHubAgent(BaseAgent):
             llm_response = await self.llm.generate_response(system_prompt, user_prompt)
             clean_json = llm_response.replace("```json", "").replace("```", "").strip()
             parsed = json.loads(clean_json)
-            ids = parsed.get("jira_ids", [])
-            return [str(i).upper() for i in ids if isinstance(i, (str, int))]
+            candidate_ids = [str(i).upper() for i in parsed.get("jira_ids", []) if isinstance(i, (str, int))]
+
+            # 🛡️ EK GUARDRAIL: "Sayısal Temellendirme" (Digit Grounding) Kontrolü
+            # ticket_exists() sadece biletin Jira'da VAR OLUP OLMADIĞINI kontrol eder,
+            # commit ile GERÇEKTEN İLGİLİ olup olmadığını değil. LLM, elinde hiçbir
+            # sayısal referans olmadan bile var olan (ama alakasız) bir bilet numarası
+            # "uydurabilir". Bunu engellemek için, LLM'in önerdiği bilet numarasındaki
+            # sayının orijinal commit metninde gerçekten bir rakam dizisi olarak geçip
+            # geçmediğini çapraz kontrol ediyoruz. Geçmiyorsa, temelsiz kabul edip atarız.
+            source_digits = set(re.findall(r"\d+", " ".join(commit_messages)))
+            grounded_ids = []
+            for candidate in candidate_ids:
+                match = re.search(r"-(\d+)$", candidate)
+                ticket_number = match.group(1) if match else None
+                if ticket_number and ticket_number in source_digits:
+                    grounded_ids.append(candidate)
+                else:
+                    logger.warning(
+                        f"🚫 LLM '{candidate}' önerdi ama bu sayı commit mesajlarında hiç "
+                        f"geçmiyor (temelsiz/halüsinasyon şüphesi). Reddedildi."
+                    )
+
+            return grounded_ids
         except Exception as e:
             logger.warning(f"⚠️ Semantik bilet çıkarımı başarısız oldu: {e}")
             return []
