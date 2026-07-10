@@ -68,62 +68,105 @@ class OrchestratorAgent(BaseAgent):
                 print(f"[Orchestrator] ⚙️ LLM Kararı: github_agent tetikleniyor...")
                 github_context = {"owner": settings.GITHUB_OWNER, "repo": settings.GITHUB_REPO, "count": 3}
                 github_result = await self.github_worker.run("Scan", context=github_context)
-                
-                context["raw_commits"] = github_result.get("extracted_data", {}).get("raw_commits", [])
-                context["jira_ids"] = github_result.get("extracted_data", {}).get("jira_ids_found", [])
-                context["code_changes"] = github_result.get("extracted_data", {}).get("code_changes", "")
-                
-            # 2. REVIEWER ADIMI (🎯 Kalite Kapısı)
-            elif step == "reviewer_agent" and context.get("code_changes"):
-                print(f"[Orchestrator] ⚙️ LLM Kararı: reviewer_agent tetikleniyor...")
-                reviewer_result = await self.reviewer_worker.run("Review code quality", context=context)
-                
-                status = reviewer_result.get("review_status", "PASSED")
-                review_comment = reviewer_result.get("review_comment", "")
-                
-                if status == "FAILED":
-                    logger.warning("🚨 Kritik kod kalitesi veya güvenlik riski saptandı! İş akışı kilitlenecek.")
-                    review_passed = False
-                
-            # 3. JIRA ADIMI (🎯 Dynamic Gatekeeping Entegrasyonu)
-            elif step == "jira_agent" and context.get("jira_ids"):
-                print(f"[Orchestrator] ⚙️ LLM Kararı: jira_agent tetikleniyor...")
-                
-                if not review_passed:
-                    logger.info("❌ Kod onay almadığı için Jira bileceğine blokaj verisi ve yorumu hazırlanıyor.")
-                    jira_context = {
-                        "jira_ids": context["jira_ids"], 
-                        "action": "both",
-                        "code_changes": f"⚠️ [GÜVENLİK/KALİTE BLOKAJI]\n{review_comment}",
-                        "review_passed": False  # 🎯 JiraAgent'a kodun kaldığını bildiriyoruz!
-                    }
-                else:
-                    jira_context = {
-                        "jira_ids": context["jira_ids"], 
-                        "action": "both",
-                        "code_changes": context.get("code_changes", ""),
-                        "review_passed": True   # 🎯 JiraAgent'a kodun geçtiğini bildiriyoruz!
-                    }
-                
-                await self.jira_worker.run("Update", context=jira_context)
 
-            elif step == "jira_agent" and not context.get("jira_ids"):
-                # 🔍 Gözlemlenebilirlik: plan jira_agent içerse bile bilet bulunamadıysa
-                # bunu açıkça logluyoruz, aksi halde adım sessizce/görünmez şekilde atlanıyordu.
+                # 🎯 Her commit kendi bilet ID'si + diff'iyle izole bir "birim" (unit) olarak taşınıyor
+                context["commit_units"] = github_result.get("extracted_data", {}).get("commit_units", [])
+                context["raw_commits"] = github_result.get("extracted_data", {}).get("raw_commits", [])
+
+            # 2. REVIEWER ADIMI (🎯 Kalite Kapısı - artık her commit için ayrı ayrı çalışır)
+            elif step == "reviewer_agent" and context.get("commit_units"):
+                print(f"[Orchestrator] ⚙️ LLM Kararı: reviewer_agent tetikleniyor...")
+                for unit in context["commit_units"]:
+                    if not unit.get("code_changes") or not unit["code_changes"].strip():
+                        unit["review_status"] = "PASSED"
+                        unit["review_comment"] = "İncelenecek kod değişikliği bulunamadı."
+                        continue
+
+                    reviewer_result = await self.reviewer_worker.run(
+                        "Review code quality", context={"code_changes": unit["code_changes"]}
+                    )
+                    unit["review_status"] = reviewer_result.get("review_status", "FAILED")
+                    unit["review_comment"] = reviewer_result.get("review_comment", "")
+
+                    if unit["review_status"] == "FAILED":
+                        logger.warning(
+                            f"🚨 Commit {unit.get('short_sha')} içinde kritik kod kalitesi/güvenlik "
+                            f"riski saptandı! Sadece bu commit'e ait bilet(ler) kilitlenecek."
+                        )
+
+                # Genel rapor/özet için: en az bir commit FAILED ise akışı "kısmen bloklu" say
+                if any(u.get("review_status") == "FAILED" for u in context["commit_units"]):
+                    review_passed = False
+
+            # 3. JIRA ADIMI (🎯 Dynamic Gatekeeping - artık her commit kendi review sonucunu taşıyor)
+            elif step == "jira_agent" and context.get("commit_units"):
+                any_ticket_processed = False
+                for unit in context["commit_units"]:
+                    if not unit.get("jira_ids"):
+                        continue
+                    any_ticket_processed = True
+
+                    unit_review_passed = unit.get("review_status", "PASSED") != "FAILED"
+                    print(
+                        f"[Orchestrator] ⚙️ LLM Kararı: jira_agent tetikleniyor "
+                        f"(commit {unit.get('short_sha')} -> {unit['jira_ids']})..."
+                    )
+
+                    if not unit_review_passed:
+                        logger.info(
+                            f"❌ Commit {unit.get('short_sha')} onay almadığı için ilgili Jira "
+                            f"bilet(ler)ine blokaj verisi ve yorumu hazırlanıyor."
+                        )
+                        jira_context = {
+                            "jira_ids": unit["jira_ids"],
+                            "action": "both",
+                            "code_changes": f"⚠️ [GÜVENLİK/KALİTE BLOKAJI]\n{unit.get('review_comment', '')}",
+                            "review_passed": False
+                        }
+                    else:
+                        jira_context = {
+                            "jira_ids": unit["jira_ids"],
+                            "action": "both",
+                            "code_changes": unit.get("code_changes", ""),
+                            "review_passed": True
+                        }
+
+                    await self.jira_worker.run("Update", context=jira_context)
+
+                if not any_ticket_processed:
+                    logger.info(
+                        "ℹ️ jira_agent planlanmıştı ancak hiçbir commit'te Jira bilet ID'si "
+                        "bulunamadığı için bu adım atlandı (regex ve LLM fallback ikisi de sonuçsuz kaldı)."
+                    )
+
+            elif step == "jira_agent" and not context.get("commit_units"):
                 logger.info(
                     "ℹ️ jira_agent planlanmıştı ancak hiçbir Jira bilet ID'si bulunamadığı "
                     "için bu adım atlandı (regex ve LLM fallback ikisi de sonuçsuz kaldı)."
                 )
-                
-            # 4. REPORTER ADIMI
-            elif step == "reporter_agent" and context.get("raw_commits") and review_passed:
+
+            # 4. REPORTER ADIMI (sadece review'dan geçen commit'leri raporlar)
+            elif step == "reporter_agent" and context.get("raw_commits"):
                 print(f"[Orchestrator] ⚙️ LLM Kararı: reporter_agent tetikleniyor...")
-                reporter_context = {"raw_commits": context["raw_commits"]}
-                reporter_result = await self.reporter_worker.run("Report", context=reporter_context)
-                context["final_report"] = reporter_result.get("generated_report")
+
+                if context.get("commit_units"):
+                    blocked_shas = {
+                        u["sha"] for u in context["commit_units"] if u.get("review_status") == "FAILED"
+                    }
+                    reportable_commits = [c for c in context["raw_commits"] if c.get("sha") not in blocked_shas]
+                else:
+                    reportable_commits = context["raw_commits"]
+
+                if not reportable_commits:
+                    logger.info("ℹ️ Tüm commit'ler bloklandığı için raporlanacak onaylı değişiklik yok.")
+                    context["final_report"] = "Tüm değişiklikler güvenlik/kalite blokajı nedeniyle raporlanamadı."
+                else:
+                    reporter_context = {"raw_commits": reportable_commits}
+                    reporter_result = await self.reporter_worker.run("Report", context=reporter_context)
+                    context["final_report"] = reporter_result.get("generated_report")
 
         return {
-            "status": "success" if review_passed else "blocked",
+            "status": "success" if review_passed else "partially_blocked",
             "final_report": context.get("final_report", "Güvenlik blokajı nedeniyle sürüm bülteni raporu üretilmedi.")
         }
 

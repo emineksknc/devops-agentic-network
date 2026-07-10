@@ -184,20 +184,33 @@ class GitHubAgent(BaseAgent):
         owner = context.get("owner")
         repo = context.get("repo")
         count = context.get("count", 5)
-        
+
         if not owner or not repo:
             return {"agent": self.name, "status": "error", "message": "Missing owner or repo in context"}
-            
+
         commits = await self.fetch_commits(owner, repo, count)
-        messages = [c["message"] for c in commits]
-        jira_ids = await self.extract_jira_ids(messages)
-        
-        # 🎯 En son commit'in kod diff'ini (değişikliklerini) çekiyoruz
-        code_changes = ""
-        if commits:
-            latest_sha = commits[0].get("sha") # İlk eleman en güncel commit'tir
-            code_changes = await self.fetch_commit_diff(owner, repo, latest_sha)
-        
+
+        # 🎯 KAPSAM (SCOPE) DÜZELTMESİ:
+        # Önceki tasarımda tüm commit mesajlarından toplanan bilet ID'leri ile SADECE en son
+        # commit'in diff'i incelenip aynı review sonucu TÜM biletlere uygulanıyordu. Bu, bir
+        # commit'teki riskin, o commit'le hiç ilgisi olmayan başka bir bilete (örn. eski bir
+        # commit'teki bilete) yanlışlıkla uygulanmasına yol açıyordu. Artık her commit kendi
+        # "birimi" (unit) olarak ele alınıyor: kendi mesajından çıkan bilet ID'leri, kendi diff'i.
+        # Reviewer/Jira adımları bu birimler üzerinde ayrı ayrı çalışacak.
+        commit_units: List[Dict[str, Any]] = []
+        for c in commits:
+            message = c.get("message", "")
+            commit_jira_ids = await self.extract_jira_ids([message])
+            diff = await self.fetch_commit_diff(owner, repo, c.get("sha"))
+            commit_units.append({
+                "sha": c.get("sha"),
+                "short_sha": c.get("short_sha"),
+                "message": message,
+                "author": c.get("author"),
+                "jira_ids": commit_jira_ids,
+                "code_changes": diff,
+            })
+
         return {
             "agent": self.name,
             "status": "success",
@@ -205,9 +218,8 @@ class GitHubAgent(BaseAgent):
                 "owner": owner,
                 "repo": repo,
                 "commits_analyzed": len(commits),
-                "jira_ids_found": jira_ids,
+                "commit_units": commit_units,  # 🎯 Her commit kendi bilet ID'si + diff'iyle izole
                 "raw_commits": commits,
-                "code_changes": code_changes # 🎯 Şef Ajan'a (Orchestrator) paslanan sıcak kod verisi
             }
         }
 
