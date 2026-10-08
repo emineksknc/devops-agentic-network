@@ -1,3 +1,4 @@
+import re
 import logging
 import json
 from typing import List, Dict, Any
@@ -70,9 +71,26 @@ class ReviewerAgent(BaseAgent):
             raw_comment = review_result.get("review_comment", "Kod analizi başarıyla tamamlandı.")
 
             # 🎯 Yapısal alanları (affected_file/affected_symbol) serbest metinle birleştirerek
-            # her zaman dosya adı içeren, izlenebilir bir yorum üretiyoruz. Modelin serbest metinde
-            # spesifikliği "unutması" ihtimaline karşı, dosya bilgisini biz garantiye alıyoruz.
-            if affected_file and str(affected_file).lower() != "null":
+            # her zaman dosya adı içeren, izlenebilir bir yorum üretiyoruz.
+            has_valid_file = affected_file and str(affected_file).lower() != "null"
+
+            # 🛡️ EK GÜVENCE: Model FAILED derken affected_file'ı boş bırakırsa (talimata
+            # rağmen), modelin işbirliğine güvenmek yerine dosya adlarını diff metninin
+            # kendisinden regex ile çıkarıyoruz. Bu, modelden bağımsız, garantili bir yol.
+            if status == "FAILED" and not has_valid_file:
+                diff_file_names = re.findall(r"--- Dosya: (.+?) ---", code_changes)
+                if diff_file_names:
+                    if len(diff_file_names) == 1:
+                        affected_file = diff_file_names[0]
+                    else:
+                        affected_file = f"{len(diff_file_names)} dosya ({', '.join(diff_file_names)})"
+                    has_valid_file = True
+                    logger.info(
+                        f"ℹ️ Model 'affected_file' alanını doldurmadı, diff'ten otomatik "
+                        f"çıkarıldı: {affected_file}"
+                    )
+
+            if has_valid_file:
                 location_prefix = f"📄 {affected_file}"
                 if affected_symbol and str(affected_symbol).lower() != "null":
                     location_prefix += f" ({affected_symbol})"
