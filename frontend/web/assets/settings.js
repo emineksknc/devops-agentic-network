@@ -52,9 +52,24 @@
       + field("Proje anahtarı (jira)", input("project_key", c.project_key || "", "SCRUM"))
       + field("Provider (llm)", '<select name="provider" class="w-full px-3 py-2 rounded-md text-sm" style="background:#0f172a;border:1px solid #334155;color:#f8fafc">'
         + ["ollama", "openai", "anthropic"].map((p) => '<option value="' + p + '"' + (c.provider === p ? " selected" : "") + ">" + p + "</option>").join("") + "</select><div class='mb-3'></div>")
-      + field("Model (llm)", input("model", c.model || "", "llama3.1 / gpt-4o-mini"))
+      + field("Model (llm)", input("model", c.model || "", "llama3.1 / gpt-4o-mini").replace('class="w-full', 'list="m-models" class="w-full')
+        + '<datalist id="m-models"></datalist><div id="m-hint" class="text-xs mt-1" style="color:#64748b">Kurulu modeller yükleniyor…</div><div class=\'mb-3\'></div>')
       + '<label class="text-xs flex items-center gap-2 mb-4" style="color:#94a3b8"><input type="checkbox" name="is_default" ' + (c.is_default ? "checked" : "") + " /> Varsayılan yap</label>"
       + '<div class="flex justify-end">' + primaryBtn("Kaydet") + "</div>");
+    const dl = m.querySelector("#m-models");
+    const hint = m.querySelector("#m-hint");
+    const provSel = m.querySelector('select[name="provider"]');
+    async function fillModels() {
+      const prov = provSel ? provSel.value : "ollama";
+      const q = c.id ? "?conn_id=" + encodeURIComponent(c.id) : "?provider=" + encodeURIComponent(prov);
+      try {
+        const models = await api.get("/api/llm/models" + q);
+        dl.innerHTML = models.map((x) => '<option value="' + esc(x.name) + '">').join("");
+        if (hint) hint.textContent = models.length ? models.length + " model bulundu (" + (models[0].source || "") + ")" : "Model bulunamadı";
+      } catch (e) { if (hint) hint.textContent = "Liste alınamadı: " + e.message; }
+    }
+    if (provSel) provSel.onchange = fillModels;
+    fillModels();
     m.querySelector('[data-act="save"]').onclick = async () => {
       const v = formValues(m);
       try {
