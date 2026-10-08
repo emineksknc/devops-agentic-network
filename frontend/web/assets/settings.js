@@ -71,9 +71,9 @@
         if (hint) hint.textContent = models.length ? models.length + " model bulundu (" + (models[0].source || "") + ")" : "Model bulunamadı";
       } catch (e) { if (hint) hint.textContent = "Liste alınamadı: " + e.message; }
     }
-    const kindSel = m.querySelector('select[name="kind"]');
+    const kindSel2 = m.querySelector('select[name="kind"]');
     if (provSel) provSel.onchange = fillModels;
-    if (kindSel) kindSel.onchange = fillModels;
+    if (kindSel2) kindSel2.onchange = fillModels;
     fillModels();
     m.querySelector('[data-act="save"]').onclick = async () => {
       const v = formValues(m);
