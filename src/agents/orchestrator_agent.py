@@ -51,6 +51,13 @@ class OrchestratorAgent(BaseAgent):
         jira_conn = conns.get("jira") or {}
         llm_conn = conns.get("llm") or {}
         self._connections = {"github": github_conn, "jira": jira_conn, "llm": llm_conn}
+        gates = (conns.get("gates") or {})
+        self._gates = {
+            "plan_on_fail": gates.get("plan_on_fail", True),
+            "plan_on_pass": gates.get("plan_on_pass", False),
+        }
+        tr = (conns.get("transitions") or {})
+        self._transitions = {"pass": tr.get("pass") or "In Review", "fail": tr.get("fail") or "Blocked"}
         self.llm = model_client or LLMClient(connection=llm_conn)
 
         # Tum alt ajanlar run'in LLM baglantisini paylasir (provider secimi tek noktada)
@@ -91,6 +98,8 @@ class OrchestratorAgent(BaseAgent):
                 "reporter": registry.is_enabled("reporter_agent"),
             },
             "plan_prompt": registry.system_prompt("orchestrator"),
+            "gates": getattr(self, "_gates", {"plan_on_fail": True, "plan_on_pass": False}),
+            "transitions": getattr(self, "_transitions", {"pass": "In Review", "fail": "Blocked"}),
         }
         app = build_graph(workers)
         final = await app.ainvoke({

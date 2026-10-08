@@ -22,7 +22,21 @@
     setVal("#github-token", "");
     const gt = $("#github-token"); if (gt) gt.placeholder = GH && GH.token === "***masked***" ? "kayıtlı (değiştirmek için yaz)" : "";
     const wh = $("#webhook-token");
-    if (wh) { wh.value = ""; wh.disabled = true; wh.placeholder = "yakında"; wh.title = "Webhook tetikleme henüz desteklenmiyor"; }
+    if (wh) {
+      wh.value = "";
+      wh.disabled = false;
+      wh.placeholder = GH && GH.webhook_secret === "***masked***" ? "kayıtlı (değiştirmek için yaz)" : "whsec_...";
+      wh.title = "GitHub webhook secret (repo ayarlarındaki ile aynı olmalı)";
+      let note = $("#wh-note");
+      if (!note) {
+        note = document.createElement("div");
+        note.id = "wh-note";
+        note.className = "text-xs mt-1";
+        note.style.color = "#64748b";
+        wh.parentElement.after(note);
+      }
+      note.textContent = "Endpoint: " + location.origin + "/api/webhooks/github";
+    }
     try {
       const pols = await api.get("/api/policies");
       const repos = pols.map((p) => p.repo).join(", ");
@@ -80,8 +94,10 @@
   async function saveGH() {
     if (!GH) return;
     const token = ($("#github-token") || {}).value || "";
+    const secret = ($("#webhook-token") || {}).value || "";
     const body = { name: GH.name, kind: "github", base_url: GH.base_url, owner: getVal("[data-bind='gh-org']"), email: "", project_key: "", provider: "", model: "", temperature: 0.3, max_tokens: 2048, is_default: GH.is_default };
     if (token) body.token = token;
+    if (secret) body.webhook_secret = secret;
     try { await api.put("/api/connections/" + encodeURIComponent(GH.id), body); tToast("GitHub ayarları kaydedildi."); load(); }
     catch (e) { tToast("Kaydedilemedi: " + e.message); }
   }

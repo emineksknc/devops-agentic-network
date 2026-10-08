@@ -82,6 +82,23 @@ Reporter Agent bu senaryoda hiç tetiklenmedi — güvenlik blokajı olduğu iç
 
 ## 🛠️ Hızlı Başlangıç
 
+### Web Arayüzü (önerilen)
+```
+pip install -r requirements.txt
+uvicorn src.api.app:app --port 8000
+# http://localhost:8000/runs
+```
+`.env`'e GitHub + Jira tokenlarını yaz, Ayarlar sayfasından Test ile doğrula.
+İlk açılışta `data/dan.db` oluşur ve env'deki bağlantılar tohumlanır.
+Token değiştirirsen: Ayarlar'dan güncelle ya da `data/dan.db`'yi sil (yeniden tohumlanır).
+
+GitHub webhook (push -> otomatik run): repo ayarlarına
+`http://SUNUCU:8000/api/webhooks/github` ekle, secret'ı Ayarlar'daki
+GitHub bağlantısına işle.
+
+### CLI (klasik)
+
+
 ### 1. Ön Koşullar
 - Python 3.11+
 - [Ollama](https://ollama.com) kurulu ve çalışır durumda (`ollama serve`), kullanılacak model çekilmiş olmalı (örn. `ollama pull llama3.1`)

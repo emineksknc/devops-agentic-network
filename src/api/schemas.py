@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 class RunCreate(BaseModel):
     repo: str = Field(min_length=1, description="org/repo veya repo adi")
     user_goal: str = "GitHub reposundaki son degisiklikleri incele, ilgili Jira kartlarini guncelle ve teknik bulteni hazirla."
-    dry_run: bool = True
+    dry_run: bool | None = Field(default=None, description="None ise policy dry_run_default gecerli")
     count: int = Field(default=3, ge=1, le=20)
     github_conn_id: str = ""
     jira_conn_id: str = ""
@@ -92,6 +92,7 @@ class ConnectionIn(BaseModel):
     model: str = ""
     temperature: float = 0.3
     max_tokens: int = 2048
+    webhook_secret: str = ""
     is_default: bool = False
 
 

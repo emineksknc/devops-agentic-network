@@ -26,30 +26,44 @@ def _parse_repo(repo: str) -> dict:
 
 
 async def execute_run(
-    run_id: str, repo: str, user_goal: str, dry_run: bool, count: int,
+    run_id: str, repo: str, user_goal: str, dry_run: bool | None, count: int,
     github_conn_id: str = "", jira_conn_id: str = "", llm_conn_id: str = "",
 ) -> None:
     from src.agents.orchestrator_agent import OrchestratorAgent
 
     with db.connect() as conn:
-        policy = db.row_to_dict(conn.execute("SELECT * FROM policies WHERE repo=?", (repo,)).fetchone())
-        gh_id = github_conn_id or ((policy or {}).get("github_conn_id") or "")
-        ji_id = jira_conn_id or ((policy or {}).get("jira_conn_id") or "")
+        policy = db.row_to_dict(conn.execute("SELECT * FROM policies WHERE repo=?", (repo,)).fetchone()) or {}
+        gh_id = github_conn_id or (policy.get("github_conn_id") or "")
+        ji_id = jira_conn_id or (policy.get("jira_conn_id") or "")
         gh_conn = db.get_connection(conn, gh_id) if gh_id else None
         ji_conn = db.get_connection(conn, ji_id) if ji_id else None
         ll_conn = db.get_connection(conn, llm_conn_id) if llm_conn_id else None
         gh_conn = gh_conn or db.default_connection(conn, "github") or {}
         ji_conn = ji_conn or db.default_connection(conn, "jira") or {}
         ll_conn = ll_conn or db.default_connection(conn, "llm") or {}
+        # Policy kapilari: dry_run yoksa bile FAIL onaya dusebilir
+        req_dry = dry_run if dry_run is not None else True
+        eff_dry = bool(req_dry or policy.get("dry_run_default", 1))
+        gates = {
+            "plan_on_fail": True if eff_dry else bool(policy.get("require_approval", 1) or not policy.get("auto_write_fail", 0)),
+            "plan_on_pass": True if eff_dry else bool(not policy.get("auto_write_pass", 1)),
+        }
+        transitions = {
+            "pass": policy.get("on_pass_transition") or "In Review",
+            "fail": policy.get("on_fail_transition") or "Blocked",
+        }
         conn.execute(
-            "UPDATE runs SET status='running', github_conn_id=?, jira_conn_id=?, llm_conn_id=? WHERE id=?",
-            (gh_conn.get("id", ""), ji_conn.get("id", ""), ll_conn.get("id", ""), run_id),
+            "UPDATE runs SET status='running', dry_run=?, github_conn_id=?, jira_conn_id=?, llm_conn_id=? WHERE id=?",
+            (1 if eff_dry else 0, gh_conn.get("id", ""), ji_conn.get("id", ""), ll_conn.get("id", ""), run_id),
         )
     try:
-        orch = OrchestratorAgent(connections={"github": gh_conn, "jira": ji_conn, "llm": ll_conn})
+        orch = OrchestratorAgent(connections={
+            "github": gh_conn, "jira": ji_conn, "llm": ll_conn,
+            "gates": gates, "transitions": transitions,
+        })
         gh = _parse_repo(repo)
         gh["count"] = count
-        result = await orch.route_and_execute(user_goal, dry_run=dry_run, github_context=gh)
+        result = await orch.route_and_execute(user_goal, dry_run=eff_dry, github_context=gh)
 
         units = result.get("commit_units", []) or []
         planned = result.get("jira_planned", []) or []
@@ -70,17 +84,17 @@ async def execute_run(
                 for tid in p.get("jira_ids", []):
                     conn.execute(
                         """INSERT INTO jira_actions
-                           (run_id, commit_sha, ticket_id, review_passed, code_changes, state)
-                           VALUES (?,?,?,?,?,?)""",
+                           (run_id, commit_sha, ticket_id, review_passed, code_changes, state, target_status)
+                           VALUES (?,?,?,?,?,?,?)""",
                         (
                             run_id, p.get("commit_sha"), tid,
                             1 if p.get("review_passed") else 0,
                             (p.get("code_changes") or "")[:20000],
-                            "planned",
+                            "planned", p.get("target_status") or "",
                         ),
                     )
             status = result.get("status", "success")
-            if dry_run and planned:
+            if planned:
                 status = "pending_approval"
             conn.execute(
                 "UPDATE runs SET status=?, final_report=? WHERE id=?",
@@ -98,13 +112,14 @@ async def create_run(body: RunCreate, background: BackgroundTasks) -> RunOut:
     with db.connect() as conn:
         conn.execute(
             "INSERT INTO runs (id, created_at, trigger, repo, user_goal, status, dry_run) VALUES (?,?,?,?,?,?,?)",
-            (run_id, _now(), "api", body.repo, body.user_goal, "queued", 1 if body.dry_run else 0),
+            (run_id, _now(), "api", body.repo, body.user_goal, "queued", 1 if body.dry_run is not False else 0),
         )
     background.add_task(
         execute_run, run_id, body.repo, body.user_goal, body.dry_run, body.count,
         body.github_conn_id, body.jira_conn_id, body.llm_conn_id,
     )
-    return RunOut(run_id=run_id, repo=body.repo, status="queued", dry_run=body.dry_run, created_at=_now())
+    return RunOut(run_id=run_id, repo=body.repo, status="queued",
+                  dry_run=True if body.dry_run is None else body.dry_run, created_at=_now())
 
 
 @router.get("", response_model=list[RunOut])
@@ -197,6 +212,7 @@ async def approve_run(run_id: str, body: ApproveIn) -> RunDetailOut:
             "action": "both",
             "code_changes": a["code_changes"] or "",
             "review_passed": bool(a["review_passed"]),
+            "target_status": a["target_status"] or None,
         }
         try:
             res = await agent.run("Update", context=ctx)
@@ -209,7 +225,7 @@ async def approve_run(run_id: str, body: ApproveIn) -> RunDetailOut:
                 reason = None
                 cok = bool(det.get("comment"))
                 tok = bool(det.get("transition"))
-                tto = "In Review" if bool(a["review_passed"]) else "Blocked"
+                tto = a["target_status"] or ("In Review" if bool(a["review_passed"]) else "Blocked")
         except Exception as e:
             state, reason, cok, tok, tto = "failed", str(e)[:500], False, False, None
         with db.connect() as conn:

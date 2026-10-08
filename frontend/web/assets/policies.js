@@ -1,68 +1,183 @@
-/* Politikalar: /api/policies + baglanti secimi. */
+/* Politikalar: sablon kart/modal tasarimi korunur, ici canli API.
+   Kartlar sablon karttan klonlanir; modal select'leri canli dolar. */
 (function () {
-  const main = document.querySelector("body > main > div");
-  if (!main || !window.DAN) return;
-  const { api, toast, esc, openModal, closeModal, field, input, formValues, primaryBtn } = window.DAN;
-  let conns = [];
+  if (!window.DAN) return;
+  const { api, esc } = window.DAN;
+  const showToast = (m) => { if (window.showToast) window.showToast(m); };
+  const setSwitch = window.setSwitchState || ((btn, s) => btn && btn.setAttribute("aria-checked", s ? "true" : "false"));
 
-  function connName(id) { const c = conns.find((x) => x.id === id); return c ? c.name : "—"; }
-  const cs = 'style="background:#1e293b;border:1px solid #334155"';
+  let CONNS = [];
+  const STATUSES = ["To Do", "In Progress", "In Review", "Done", "Blocked"];
+
+  function editButtons() {
+    let found = [...document.querySelectorAll("button[onclick*='openPolicyModal']")];
+    if (!found.length) {
+      found = [...document.querySelectorAll("button")].filter((b) =>
+        (b.getAttribute("onclick") || "").includes("openPolicyModal"));
+    }
+    return found;
+  }
+  function cardRoot(btn) {
+    let el = btn.parentElement, depth = 0;
+    while (el && depth < 10) {
+      try {
+        if (el.querySelector && el.querySelector("button[onclick*='testPolicyRule']")) return el;
+      } catch (e) {}
+      el = el.parentElement; depth++;
+    }
+    el = btn.parentElement; depth = 0;
+    while (el && depth < 10) {
+      if (el.className && typeof el.className === "string" && el.className.includes("rounded-xl")) return el;
+      el = el.parentElement; depth++;
+    }
+    return btn.parentElement;
+  }
+  function parseArgs(onclick) {
+    const m = onclick.match(/openPolicyModal\((.*)\)\s*;?\s*$/);
+    if (!m) return null;
+    try { return JSON.parse("[" + m[1].replace(/'/g, '"') + "]"); } catch (e) { return null; }
+  }
 
   async function load() {
+    let pols = [];
     try {
-      const [pols, c] = await Promise.all([api.get("/api/policies"), api.get("/api/connections")]);
-      conns = c;
-      main.innerHTML = '<div class="flex items-center justify-between"><h1 class="text-xl font-bold" style="color:#f8fafc">Politikalar</h1>'
-        + '<button id="p-new" class="px-4 py-2 rounded-md text-sm font-semibold" style="background:#6366f1;color:#fff">+ Yeni Politika</button></div>'
-        + '<div class="grid gap-3 xl:grid-cols-2">' + (pols.map(policyCard).join("") || emptyState()) + "</div>";
-      document.getElementById("p-new").onclick = () => editModal({});
-      main.querySelectorAll("[data-edit]").forEach((b) => (b.onclick = () => editModal(JSON.parse(b.dataset.edit))));
-      main.querySelectorAll("[data-del]").forEach((b) => (b.onclick = async () => {
-        if (!confirm("Silinsin mi?")) return;
-        await api.del("/api/policies/" + encodeURIComponent(b.dataset.del)); load();
-      }));
-    } catch (e) { toast("Yüklenemedi: " + e.message); }
+      const [p, c] = await Promise.all([api.get("/api/policies"), api.get("/api/connections")]);
+      pols = p; CONNS = c;
+    } catch (e) { showToast("Politikalar yüklenemedi: " + e.message); return; }
+
+    const btns = editButtons();
+    if (!btns.length) return;
+    const templateCard = cardRoot(btns[0]);
+    const parent = templateCard.parentElement;
+    const mocks = btns.map((b) => ({ btn: b, card: cardRoot(b), args: parseArgs(b.getAttribute("onclick")) }));
+    // sablon kartlari kaldir, canlilari klonla
+    mocks.forEach((x) => x.card.remove());
+    if (!pols.length) {
+      const empty = templateCard.cloneNode(true);
+      empty.innerHTML = '<div class="p-6 text-center text-sm" style="color:#94a3b8">Henüz politika yok. Düzenle ile ilkini oluştur.</div>';
+      parent.appendChild(empty);
+    }
+    pols.forEach((p) => parent.appendChild(buildCard(templateCard, p)));
+    fillModalSelects();
   }
-  function emptyState() {
-    return '<div class="rounded-xl p-6 text-center text-sm" ' + cs + ' style="color:#94a3b8">Henüz politika yok. İlkini oluştur.</div>';
+
+  function buildCard(tpl, p) {
+    const card = tpl.cloneNode(true);
+    let html = card.innerHTML;
+    // repo adi: karttaki ilk repo gorunumu degistir
+    const repoSpots = [...card.querySelectorAll("*")].filter((el) =>
+      el.children.length === 0 && /org\//.test(el.textContent || ""));
+    repoSpots.forEach((el) => { el.textContent = p.repo; });
+    // durum gecisleri
+    const passSpots = [...card.querySelectorAll("*")].filter((el) =>
+      el.children.length === 0 && /Ready for Staging|In Review|In Progress/.test(el.textContent || ""));
+    passSpots.forEach((el) => { el.textContent = p.on_pass_transition; });
+    const failSpots = [...card.querySelectorAll("*")].filter((el) =>
+      el.children.length === 0 && /Blocked/.test(el.textContent || ""));
+    failSpots.forEach((el) => { el.textContent = p.on_fail_transition; });
+    // toggle'lar: sirayla autowrite/approval/dryrun (sablon duzeni)
+    const toggles = [...card.querySelectorAll("button[onclick*='toggleSwitch']")];
+    const vals = [p.auto_write_pass || p.auto_write_fail, p.require_approval, p.dry_run_default];
+    toggles.slice(0, 3).forEach((t, i) => { setSwitch(t, !!vals[i]); t.removeAttribute("onclick"); t.onclick = () => { if (window.toggleSwitch) window.toggleSwitch(t); }; });
+    // butonlari gercekle
+    card.querySelectorAll("button").forEach((b) => {
+      const oc = b.getAttribute("onclick") || "";
+      if (oc.includes("testPolicyRule")) {
+        b.removeAttribute("onclick");
+        b.onclick = async () => {
+          try {
+            const r = await api.post("/api/runs", { repo: p.repo, dry_run: true, count: 3 });
+            showToast("Test runu başlatıldı: #run-" + r.run_id);
+          } catch (e) { showToast("Test başlatılamadı: " + e.message); }
+        };
+      } else if (oc.includes("openPolicyModal")) {
+        b.removeAttribute("onclick");
+        b.onclick = () => window.openPolicyModal(p.repo, p.jira_project, p.on_pass_transition, p.on_fail_transition, !!(p.auto_write_pass || p.auto_write_fail), !!p.require_approval, !!p.dry_run_default);
+      }
+    });
+    card.dataset.policy = p.repo;
+    return card;
   }
-  function policyCard(p) {
-    return '<div class="rounded-xl p-4 space-y-2" ' + cs + '>'
-      + '<div class="flex items-center justify-between"><b class="text-sm" style="color:#f8fafc">' + esc(p.repo) + "</b>"
-      + '<div class="flex gap-2"><button data-edit=\'' + esc(JSON.stringify(p)) + '\' class="text-xs" style="color:#818cf8">Düzenle</button>'
-      + '<button data-del="' + esc(p.repo) + '" class="text-xs" style="color:#ef4444">Sil</button></div></div>'
-      + '<div class="text-xs space-y-1" style="color:#94a3b8">'
-      + "<div>Proje: " + esc(p.jira_project || "—") + "</div>"
-      + "<div>Geçerse → " + esc(p.on_pass_transition) + (p.auto_write_pass ? " (otomatik)" : " (onaylı)") + "</div>"
-      + "<div>Kalırsa → " + esc(p.on_fail_transition) + (p.auto_write_fail ? " (otomatik)" : " (onaylı)") + "</div>"
-      + "<div>GitHub: " + esc(connName(p.github_conn_id)) + " · Jira: " + esc(connName(p.jira_conn_id)) + "</div>"
-      + (p.dry_run_default ? "<div>Dry-run varsayılan</div>" : "") + "</div></div>";
+
+  function fillModalSelects() {
+    const sj = document.getElementById("select-jira");
+    if (sj) {
+      const projects = [...new Set(CONNS.filter((c) => c.kind === "jira").flatMap((c) => [c.project_key]).filter(Boolean))];
+      sj.innerHTML = projects.map((x) => '<option value="' + esc(x) + '">' + esc(x) + "</option>").join("")
+        || '<option value="">—</option>';
+    }
+    ["select-pass", "select-fail"].forEach((id) => {
+      const s = document.getElementById(id);
+      if (s) s.innerHTML = STATUSES.map((x) => '<option value="' + esc(x) + '">' + esc(x) + "</option>").join("");
+    });
+    // baglanti secimleri (tasarim dilinde ek satirlar)
+    const form = document.getElementById("policy-form");
+    if (form && !document.getElementById("select-gh-conn")) {
+      const wrap = document.createElement("div");
+      wrap.innerHTML = '<label class="text-xs" style="color:#94a3b8">GitHub bağlantısı</label>'
+        + '<select id="select-gh-conn" class="w-full mt-1 mb-2 px-3 py-2 rounded-md text-sm" style="background:#0f172a;border:1px solid #334155;color:#f8fafc"></select>'
+        + '<label class="text-xs" style="color:#94a3b8">Jira bağlantısı</label>'
+        + '<select id="select-jira-conn" class="w-full mt-1 px-3 py-2 rounded-md text-sm" style="background:#0f172a;border:1px solid #334155;color:#f8fafc"></select>';
+      const anchor = document.getElementById("select-fail");
+      if (anchor && anchor.parentElement) anchor.parentElement.after(wrap);
+      else form.prepend(wrap);
+    }
+    const gh = document.getElementById("select-gh-conn"), ji = document.getElementById("select-jira-conn");
+    if (gh) gh.innerHTML = '<option value="">Varsayılan</option>' + CONNS.filter((c) => c.kind === "github").map((c) => '<option value="' + esc(c.id) + '">' + esc(c.name) + "</option>").join("");
+    if (ji) ji.innerHTML = '<option value="">Varsayılan</option>' + CONNS.filter((c) => c.kind === "jira").map((c) => '<option value="' + esc(c.id) + '">' + esc(c.name) + "</option>").join("");
   }
-  function connOpts(kind, sel) {
-    return conns.filter((c) => c.kind === kind)
-      .map((c) => '<option value="' + esc(c.id) + '"' + (c.id === sel ? " selected" : "") + ">" + esc(c.name) + "</option>").join("");
+
+  function switchVal(id) {
+    const b = document.getElementById(id);
+    return b ? b.getAttribute("aria-checked") === "true" : false;
   }
-  function editModal(p) {
-    const m = openModal("<h3 class='text-base font-semibold mb-3' style='color:#f8fafc'>Politika</h3>"
-      + field("Repo (org/repo)", input("repo", p.repo || "", "org/backend-api"))
-      + field("Jira projesi", input("jira_project", p.jira_project || "", "SCRUM"))
-      + field("Geçerse geçiş", input("on_pass_transition", p.on_pass_transition || "In Review"))
-      + field("Kalırsa geçiş", input("on_fail_transition", p.on_fail_transition || "Blocked"))
-      + field("GitHub bağlantısı", '<select name="github_conn_id" class="w-full px-3 py-2 rounded-md text-sm" style="background:#0f172a;border:1px solid #334155;color:#f8fafc"><option value="">Varsayılan</option>' + connOpts("github", p.github_conn_id) + "</select><div class='mb-3'></div>")
-      + field("Jira bağlantısı", '<select name="jira_conn_id" class="w-full px-3 py-2 rounded-md text-sm" style="background:#0f172a;border:1px solid #334155;color:#f8fafc"><option value="">Varsayılan</option>' + connOpts("jira", p.jira_conn_id) + "</select><div class='mb-3'></div>")
-      + '<div class="text-xs space-y-2 mb-4" style="color:#94a3b8">'
-      + tgl("auto_write_pass", "Geçerse otomatik yaz", p.auto_write_pass !== false)
-      + tgl("auto_write_fail", "Kalırsa otomatik yaz", !!p.auto_write_fail)
-      + tgl("require_approval", "Onay zorunlu", p.require_approval !== false)
-      + tgl("dry_run_default", "Dry-run varsayılan", p.dry_run_default !== false) + "</div>"
-      + '<div class="flex justify-end">' + primaryBtn("Kaydet") + "</div>");
-    m.querySelector('[data-act="save"]').onclick = async () => {
-      try { await api.post("/api/policies", formValues(m)); closeModal(); load(); }
-      catch (e) { toast("Kaydedilemedi: " + e.message); }
+
+  // global'leri gercekle bagla (sablon bunlari cagirir)
+  window.openPolicyModal = function (repo, jira, pass, fail, autoWrite, reqApproval, dryRun) {
+    const orig = document.getElementById("policy-modal");
+    if (!orig) return;
+    document.getElementById("modal-title").textContent = "Politika Düzenle (" + repo + ")";
+    document.getElementById("input-repo").value = repo || "";
+    const sj = document.getElementById("select-jira"); if (sj && jira) sj.value = jira;
+    const sp = document.getElementById("select-pass"); if (sp && pass) sp.value = pass;
+    const sf = document.getElementById("select-fail"); if (sf && fail) sf.value = fail;
+    setSwitch(document.getElementById("modal-toggle-autowrite"), !!autoWrite);
+    setSwitch(document.getElementById("modal-toggle-approval"), !!reqApproval);
+    setSwitch(document.getElementById("modal-toggle-dryrun"), !!dryRun);
+    // mevcut politika varsa baglantilari sec
+    api.get("/api/policies/" + encodeURIComponent(repo)).then((p) => {
+      const gh = document.getElementById("select-gh-conn"); if (gh) gh.value = p.github_conn_id || "";
+      const ji = document.getElementById("select-jira-conn"); if (ji) ji.value = p.jira_conn_id || "";
+    }).catch(() => {});
+    orig.classList.remove("hidden");
+  };
+  window.savePolicyChanges = async function (e) {
+    if (e) e.preventDefault();
+    const auto = switchVal("modal-toggle-autowrite");
+    const body = {
+      repo: document.getElementById("input-repo").value,
+      jira_project: document.getElementById("select-jira").value,
+      on_pass_transition: document.getElementById("select-pass").value,
+      on_fail_transition: document.getElementById("select-fail").value,
+      auto_write_pass: auto, auto_write_fail: auto,
+      require_approval: switchVal("modal-toggle-approval"),
+      dry_run_default: switchVal("modal-toggle-dryrun"),
+      github_conn_id: (document.getElementById("select-gh-conn") || {}).value || "",
+      jira_conn_id: (document.getElementById("select-jira-conn") || {}).value || "",
     };
-  }
-  function tgl(name, label, on) {
-    return '<label class="flex items-center gap-2"><input type="checkbox" name="' + name + '"' + (on ? " checked" : "") + " /> " + label + "</label>";
-  }
+    try {
+      await api.post("/api/policies", body);
+      if (window.closePolicyModal) window.closePolicyModal();
+      showToast(body.repo + " politikası kaydedildi.");
+      load();
+    } catch (err) { showToast("Kaydedilemedi: " + err.message); }
+  };
+  window.testPolicyRule = async function (repo) {
+    try {
+      const r = await api.post("/api/runs", { repo, dry_run: true, count: 3 });
+      showToast("Test runu başlatıldı: #run-" + r.run_id);
+    } catch (e) { showToast("Test başlatılamadı: " + e.message); }
+  };
+
   load();
 })();

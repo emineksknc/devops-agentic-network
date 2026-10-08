@@ -227,6 +227,12 @@ def adapt(html: str, page: str) -> str:
     # 3d) ayar sayfasi: tasarimi koru, baglama noktalarini etiketle
     if page == "settings":
         html = _tag_settings(html)
+    # 3e) detay sayfasi: iptal butonu gercek ret yapar
+    if page == "run-detail":
+        import re as _re
+
+        html = _re.sub(r'<button([^>]*bg-error-container[^>]*)>',
+                       r'<button\1 data-act="reject-run">', html, count=1)
     # 4) body'ye sayfa kimligi + asset referanslari (</head> oncesi CSS, </body> oncesi JS)
     html = html.replace("<body", '<body data-page="%s"' % page, 1)
     html = html.replace(

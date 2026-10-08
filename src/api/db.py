@@ -52,7 +52,8 @@ def init_db() -> None:
                 state TEXT NOT NULL DEFAULT 'planned',
                 comment_ok INTEGER, transition_from TEXT,
                 transition_to TEXT, transition_ok INTEGER,
-                skipped_reason TEXT
+                skipped_reason TEXT,
+                target_status TEXT NOT NULL DEFAULT ''
             );
             CREATE TABLE IF NOT EXISTS policies (
                 repo TEXT PRIMARY KEY,
@@ -79,6 +80,9 @@ def init_db() -> None:
                 project_key TEXT NOT NULL DEFAULT '',
                 provider TEXT NOT NULL DEFAULT '',
                 model TEXT NOT NULL DEFAULT '',
+                temperature REAL NOT NULL DEFAULT 0.3,
+                max_tokens INTEGER NOT NULL DEFAULT 2048,
+                webhook_secret TEXT NOT NULL DEFAULT '',
                 is_default INTEGER NOT NULL DEFAULT 0
             );
             -- Ajan ozellestirme: ac/kapa + system prompt override
@@ -111,7 +115,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
     for table, wanted in {
         "runs": ["github_conn_id", "jira_conn_id", "llm_conn_id"],
         "policies": ["github_conn_id", "jira_conn_id"],
-        "connections": ["provider", "model", "temperature", "max_tokens"],
+        "connections": ["provider", "model", "temperature", "max_tokens", "webhook_secret"],
+        "jira_actions": ["target_status"],
     }.items():
         have = cols(table)
         for col in wanted:

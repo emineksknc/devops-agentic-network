@@ -33,6 +33,7 @@ def _to_out(r) -> ConnectionOut:
         model=(r["model"] or "") if "model" in keys else "",
         temperature=_num(r, "temperature", 0.3) if "temperature" in keys else 0.3,
         max_tokens=int(_num(r, "max_tokens", 2048)) if "max_tokens" in keys else 2048,
+        webhook_secret=(MASKED if r["webhook_secret"] else "") if "webhook_secret" in keys else "",
         is_default=bool(r["is_default"]),
     )
 
@@ -54,11 +55,11 @@ async def create_connection(body: ConnectionIn) -> ConnectionOut:
         if body.is_default:
             conn.execute("UPDATE connections SET is_default=0 WHERE kind=?", (body.kind,))
         conn.execute(
-            "INSERT INTO connections (id, kind, name, base_url, owner, email, token, project_key, provider, model, temperature, max_tokens, is_default)"
-            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO connections (id, kind, name, base_url, owner, email, token, project_key, provider, model, temperature, max_tokens, webhook_secret, is_default)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (conn_id, body.kind, body.name, body.base_url, body.owner, body.email,
              body.token, body.project_key, body.provider, body.model,
-             body.temperature, body.max_tokens, int(body.is_default)),
+             body.temperature, body.max_tokens, body.webhook_secret, int(body.is_default)),
         )
     out = body.model_dump()
     out["token"] = MASKED if body.token else ""
@@ -73,14 +74,15 @@ async def update_connection(conn_id: str, body: ConnectionIn) -> ConnectionOut:
             raise HTTPException(404, "baglanti bulunamadi")
         # Maskeli/bos token gelirse mevcut secret korunur
         token = r["token"] if body.token in ("", MASKED) else body.token
+        secret = r["webhook_secret"] if body.webhook_secret in ("", MASKED) else body.webhook_secret
         if body.is_default:
             conn.execute("UPDATE connections SET is_default=0 WHERE kind=?", (r["kind"],))
         conn.execute(
             """UPDATE connections SET name=?, base_url=?, owner=?, email=?, token=?,
-               project_key=?, provider=?, model=?, temperature=?, max_tokens=?, is_default=? WHERE id=?""",
+               project_key=?, provider=?, model=?, temperature=?, max_tokens=?, webhook_secret=?, is_default=? WHERE id=?""",
             (body.name, body.base_url, body.owner, body.email, token,
              body.project_key, body.provider, body.model,
-             body.temperature, body.max_tokens, int(body.is_default), conn_id),
+             body.temperature, body.max_tokens, secret, int(body.is_default), conn_id),
         )
     out = body.model_dump()
     out["token"] = MASKED if token else ""

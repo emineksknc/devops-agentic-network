@@ -1,36 +1,104 @@
-/* Denetim izi: /api/audit salt-okunur. */
+/* Denetim izi: sablon akis/filtre/export tasarimi korunur, satirlar canli.
+   article[data-ticket|data-action|data-actor] yapisi sablon filtresiyle uyumlu. */
 (function () {
-  const main = document.querySelector("body > main > div");
-  if (!main || !window.DAN) return;
-  const { api, toast, esc, input } = window.DAN;
-  const cs = 'style="background:#1e293b;border:1px solid #334155"';
+  if (!window.DAN) return;
+  const { api, esc } = window.DAN;
+  const stream = document.getElementById("audit-log-stream");
+  if (!stream) return;
+  let ROWS = [];
+
+  function stateColor(s) {
+    return { applied: "#10b981", planned: "#818cf8", skipped: "#f59e0b", failed: "#ef4444" }[s] || "#94a3b8";
+  }
+
+  function articleFor(tpl, a) {
+    const el = tpl.cloneNode(true);
+    el.dataset.ticket = a.ticket_id || "";
+    el.dataset.action = a.state || "";
+    el.dataset.actor = a.trigger || "api";
+    let html = el.innerHTML;
+    // zaman + run + bilet metinleri: bilinen sablon orneklerini degistir
+    html = html.replace(/Bugün 14:32:10|Dün[^<]{0,20}|#run-84f9a2/g, (m) => {
+      if (m.startsWith("#run")) return "#run-" + a.run_id;
+      return (a.created_at || "").slice(0, 16).replace("T", " ");
+    });
+    html = html.replace(/PAY-1042/g, a.ticket_id || "");
+    html = html.replace(/Llama 3\.1 70B|AI Agent \([^)]*\)/g, "DAN Orkestratör");
+    html = html.replace(/JIRA_TRANSITION_STATUS|STATUS_TRANSITION/g, "JIRA_" + (a.state || "").toUpperCase());
+    el.innerHTML = html;
+    // durum noktasi rengi
+    const dot = el.querySelector("span.w-2");
+    if (dot) dot.style.background = stateColor(a.state);
+    // detay satiri: gecis bilgisi
+    const detail = el.querySelector(".bg-surface-container-lowest");
+    if (detail) {
+      detail.innerHTML = '<div class="flex items-center justify-between"><span class="text-xs" style="color:#94a3b8">Durum:</span>'
+        + '<span class="text-xs font-semibold" style="color:' + stateColor(a.state) + '">' + esc(a.state || "")
+        + (a.transition_to ? " → " + esc(a.transition_to) : "") + "</span></div>"
+        + '<div class="flex items-center justify-between"><span class="text-xs" style="color:#94a3b8">Repo:</span>'
+        + '<span class="text-xs" style="color:#c7c4d7">' + esc(a.repo || "") + "</span></div>"
+        + (a.skipped_reason ? '<div class="text-xs" style="color:#f59e0b">' + esc(a.skipped_reason) + "</div>" : "");
+    }
+    el.style.display = "";
+    return el;
+  }
 
   async function load() {
-    const t = (document.getElementById("a-ticket") || {}).value || "";
-    const r = (document.getElementById("a-repo") || {}).value || "";
-    let rows = [];
-    try {
-      rows = await api.get("/api/audit?ticket=" + encodeURIComponent(t) + "&repo=" + encodeURIComponent(r));
-    } catch (e) { toast("Yüklenemedi: " + e.message); return; }
-    const tb = document.getElementById("a-rows");
-    if (!tb) return;
-    tb.innerHTML = rows.map((a) =>
-      "<tr style='border-top:1px solid #334155'>"
-      + "<td class='py-2 pr-3 font-mono text-xs' style='color:#818cf8'>" + esc(a.ticket_id) + "</td>"
-      + "<td class='py-2 pr-3 text-xs' style='color:#94a3b8'>" + esc(a.repo) + "</td>"
-      + "<td class='py-2 pr-3 text-xs' style='color:#94a3b8'><a href='run-detail.html?id=" + esc(a.run_id) + "' style='color:#818cf8'>#run-" + esc(a.run_id) + "</a></td>"
-      + "<td class='py-2 pr-3 text-xs' style='color:#c7c4d7'>" + esc(a.state) + (a.transition_to ? " → " + esc(a.transition_to) : "") + "</td>"
-      + "<td class='py-2 text-xs' style='color:#94a3b8'>" + esc(a.created_at || "").slice(0, 16).replace("T", " ") + "</td></tr>"
-    ).join("") || "<tr><td class='py-4 text-xs' style='color:#94a3b8'>Kayıt yok.</td></tr>";
+    const q = ((document.getElementById("ticket-search") || {}).value || "").trim();
+    try { ROWS = await api.get("/api/audit?ticket=" + encodeURIComponent(q)); }
+    catch (e) { ROWS = []; }
+    const items = [...stream.querySelectorAll("article")];
+    if (!items.length) return;
+    const tpl = items[0];
+    items.forEach((x) => x.remove());
+    const frag = document.createDocumentFragment();
+    ROWS.forEach((a) => frag.appendChild(articleFor(tpl, a)));
+    stream.appendChild(frag);
+    const empty = document.getElementById("audit-empty-state");
+    if (empty) empty.style.display = ROWS.length ? "none" : "";
+    rebuildFilters();
+    if (window.applyFilter) window.applyFilter();
   }
-  main.innerHTML = '<h1 class="text-xl font-bold" style="color:#f8fafc">Denetim İzi</h1>'
-    + '<div class="flex flex-col sm:flex-row gap-2">'
-    + '<input id="a-ticket" placeholder="Bilet filtrele (örn. SCRUM-6)" class="flex-1 px-3 py-2 rounded-md text-sm" style="background:#0f172a;border:1px solid #334155;color:#f8fafc" />'
-    + '<input id="a-repo" placeholder="Repo filtrele" class="flex-1 px-3 py-2 rounded-md text-sm" style="background:#0f172a;border:1px solid #334155;color:#f8fafc" />'
-    + '<button id="a-go" class="px-4 py-2 rounded-md text-sm font-semibold" style="background:#6366f1;color:#fff">Filtrele</button></div>'
-    + '<div class="rounded-xl p-4 overflow-x-auto" ' + cs + '><table class="w-full text-left">'
-    + "<thead><tr class='text-xs' style='color:#94a3b8'><th class='pr-3 pb-1'>Bilet</th><th class='pr-3 pb-1'>Repo</th><th class='pr-3 pb-1'>Run</th><th class='pr-3 pb-1'>Durum</th><th class='pb-1'>Zaman</th></tr></thead>"
-    + '<tbody id="a-rows"></tbody></table></div>';
-  document.getElementById("a-go").onclick = load;
+
+  function rebuildFilters() {
+    const actSel = document.getElementById("action-filter");
+    if (actSel) {
+      const states = [...new Set(ROWS.map((r) => r.state).filter(Boolean))];
+      const cur = actSel.value;
+      actSel.innerHTML = '<option value="ALL">Tümü</option>' + states.map((s) => '<option value="' + esc(s) + '">' + esc(s) + "</option>").join("");
+      if ([...actSel.options].some((o) => o.value === cur)) actSel.value = cur;
+    }
+    const actorSel = document.getElementById("actor-filter");
+    if (actorSel) {
+      const actors = [...new Set(ROWS.map((r) => r.trigger || "api"))];
+      const cur = actorSel.value;
+      actorSel.innerHTML = '<option value="ALL">Tümü</option>' + actors.map((s) => '<option value="' + esc(s) + '">' + esc(s) + "</option>").join("");
+      if ([...actorSel.options].some((o) => o.value === cur)) actorSel.value = cur;
+    }
+  }
+
+  function download(name, text, type) {
+    const blob = new Blob([text], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = name; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
+  // filtre + export'u canliya bagla (sablon fonksiyonlarini sar)
+  const search = document.getElementById("ticket-search");
+  if (search) search.addEventListener("input", () => { clearTimeout(search._t); search._t = setTimeout(load, 400); });
+  const reset = document.getElementById("reset-filter-btn");
+  if (reset) reset.addEventListener("click", () => { setTimeout(load, 50); });
+  const csvBtn = document.getElementById("export-csv-btn"), jsonBtn = document.getElementById("export-json-btn");
+  if (csvBtn) csvBtn.addEventListener("click", () => {
+    const head = "ticket,repo,run,state,transition,created_at\n";
+    const body = ROWS.map((a) => [a.ticket_id, a.repo, a.run_id, a.state, a.transition_to || "", a.created_at || ""].map((x) => '"' + String(x == null ? "" : x).replace(/"/g, '""') + '"').join(",")).join("\n");
+    download("denetim-izi.csv", head + body, "text/csv");
+  });
+  if (jsonBtn) jsonBtn.addEventListener("click", () => {
+    download("denetim-izi.json", JSON.stringify(ROWS, null, 2), "application/json");
+  });
+
   load();
 })();

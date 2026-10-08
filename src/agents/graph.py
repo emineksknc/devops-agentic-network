@@ -32,6 +32,9 @@ def build_graph(workers: Dict[str, Any]):
     reporter_worker = workers["reporter"]
     enabled = workers.get("enabled", {})
     plan_prompt = workers.get("plan_prompt", "")
+    # Policy kapilari: hangi sonuc dogrudan yazilir, hangisi onaya duser
+    gates = workers.get("gates", {"plan_on_fail": True, "plan_on_pass": False})
+    transitions = workers.get("transitions", {"pass": "In Review", "fail": "Blocked"})
 
     async def plan_node(state: FlowState) -> Dict[str, Any]:
         logger.info("Graf dugumu: plan")
@@ -113,19 +116,22 @@ def build_graph(workers: Dict[str, Any]):
             ok = unit.get("review_status", "PASSED") != "FAILED"
             print(f"[Orkestrator] Graf dugumu: jira_agent (commit {unit.get('short_sha')} -> {unit['jira_ids']})")
             author_line = f"Yazar: {unit.get('author', 'bilinmiyor')} ({unit.get('short_sha', '')})\n"
+            target = transitions.get("pass") if ok else transitions.get("fail")
+            hold = dry_run or (not ok and gates.get("plan_on_fail", True)) or (ok and gates.get("plan_on_pass", False))
             if not ok:
                 ctx = {"jira_ids": unit["jira_ids"], "action": "both",
                        "code_changes": author_line + f"[GUVENLIK/KALITE BLOKAJI]\n{unit.get('review_comment', '')}",
-                       "review_passed": False}
+                       "review_passed": False, "target_status": target}
             else:
                 ctx = {"jira_ids": unit["jira_ids"], "action": "both",
                        "code_changes": author_line + (unit.get("code_changes", "") or ""),
-                       "review_passed": True}
-            if dry_run:
+                       "review_passed": True, "target_status": target}
+            if hold:
                 planned.append({"commit_sha": unit.get("sha"), "short_sha": unit.get("short_sha"),
                                 "jira_ids": list(unit["jira_ids"]), "review_passed": ok,
-                                "code_changes": ctx["code_changes"], "action": "both"})
-                logger.info("dry-run: %s icin Jira yazmasi atlandi.", unit["jira_ids"])
+                                "code_changes": ctx["code_changes"], "action": "both",
+                                "target_status": target})
+                logger.info("plan modunda: %s icin Jira yazmasi bekletiliyor.", unit["jira_ids"])
             else:
                 await jira_worker.run("Update", context=ctx)
         if not any_ticket:

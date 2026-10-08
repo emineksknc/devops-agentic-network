@@ -1,0 +1,25 @@
+services:
+  api:
+    build: .
+    env_file: .env
+    environment:
+      DAN_DB_PATH: /data/dan.db
+      OLLAMA_HOST: http://ollama:11434
+    ports:
+      - "8000:8000"
+    volumes:
+      - dan-data:/data
+    depends_on:
+      - ollama
+
+  # Lokal LLM. Ilk acilista model cek: docker compose exec ollama ollama pull llama3.1
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama-models:/root/.ollama
+    ports:
+      - "11434:11434"
+
+volumes:
+  dan-data:
+  ollama-models:

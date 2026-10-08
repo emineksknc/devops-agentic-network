@@ -8,7 +8,7 @@ router = APIRouter(prefix="/api/audit", tags=["audit"])
 
 @router.get("")
 async def list_audit(ticket: str = "", repo: str = "", limit: int = 100) -> list[dict]:
-    q = """SELECT a.id, a.run_id, r.repo, r.created_at, a.commit_sha, a.ticket_id,
+    q = """SELECT a.id, a.run_id, r.repo, r.trigger, r.created_at, a.commit_sha, a.ticket_id,
              a.review_passed, a.state, a.comment_ok, a.transition_from, a.transition_to,
              a.transition_ok, a.skipped_reason
            FROM jira_actions a JOIN runs r ON r.id=a.run_id WHERE 1=1"""

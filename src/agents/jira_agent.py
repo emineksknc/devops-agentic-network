@@ -219,7 +219,8 @@ class JiraAgent(BaseAgent):
                 
             if action in ["transition", "both"]:
                 # 🎯 DİNAMİK WORKFLOW: Kalite kontrol geçildiyse 'In Review', kaldıysa 'Blocked' aşamasına çekiyoruz
-                target_status = "In Review" if review_passed else "Blocked"
+                # Policy override: context["target_status"] verilirse onu kullan (API/policy'den gelir)
+                target_status = context.get("target_status") or ("In Review" if review_passed else "Blocked")
                 results[ticket_id]["transition"] = await self.transition_ticket_status(ticket_id, target_status)
 
         return {
