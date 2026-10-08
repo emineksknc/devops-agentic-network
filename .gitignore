@@ -35,6 +35,10 @@ pip-delete-this-directory.txt
 # Uygulamanın üretebileceği log çıktıları
 *.log
 logs/
+data/
+*.db
+*.db-wal
+*.db-shm
 .pytest_cache/
 .cache/
 
