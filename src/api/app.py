@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from src.api import db
-from src.api.routes import agents, audit, connections, developers, llm, policies, runs, settings as app_settings, webhooks
+from src.api.routes import agents, audit, connections, developers, jira, llm, policies, runs, settings as app_settings, webhooks
 from src.api.schemas import HealthOut
 
 logging.basicConfig(level=logging.INFO)
@@ -48,6 +48,7 @@ app.include_router(audit.router)
 app.include_router(llm.router)
 app.include_router(app_settings.router)
 app.include_router(webhooks.router)
+app.include_router(jira.router)
 
 if FRONTEND_DIR.exists():
     app.mount("/assets", StaticFiles(directory=FRONTEND_DIR / "assets"), name="assets")

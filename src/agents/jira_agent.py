@@ -13,9 +13,10 @@ class JiraAgent(BaseAgent):
         super().__init__(name, model_client)
         self.llm = model_client or LLMClient()
         c = connection or {}
+        explicit = bool(connection)
         self.base_url_cfg = (c.get("base_url") or settings.JIRA_DOMAIN).rstrip("/")
-        self.email = c.get("email") or settings.JIRA_USER_EMAIL
-        self.token = c.get("token") or settings.JIRA_API_TOKEN
+        self.email = c.get("email") if explicit else (c.get("email") or settings.JIRA_USER_EMAIL)
+        self.token = c.get("token") if explicit else (c.get("token") or settings.JIRA_API_TOKEN)
         self.project_key = c.get("project_key") or settings.JIRA_PROJECT_KEY
         self.register_tool("add_comment_to_ticket", self.add_comment_to_ticket)
         self.register_tool("transition_ticket_status", self.transition_ticket_status)
@@ -88,6 +89,37 @@ class JiraAgent(BaseAgent):
         except Exception as e:
             logger.error(f"❌ Jira Bağlantı Hatası (Yorum): {str(e)}")
         return False
+
+    async def create_ticket(self, project_key: str, summary: str, description: str = "", issue_type: str = "Task") -> str:
+        """Yeni bilet acar, anahtarini doner (bossa basarisiz). Test tohumlama + otomasyon icin."""
+        url = f"{self._base_url()}/rest/api/3/issue"
+        payload = {
+            "fields": {
+                "project": {"key": project_key},
+                "summary": summary[:255],
+                "description": {
+                    "type": "doc", "version": 1,
+                    "content": [{"type": "paragraph", "content": [{"type": "text", "text": description or summary}]}],
+                },
+                "issuetype": {"name": issue_type},
+            }
+        }
+        try:
+            logger.info(f"📡 Jira Canlı API: {project_key} projesine bilet açılıyor...")
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.post(
+                    url, json=payload,
+                    headers={"Accept": "application/json", "Content-Type": "application/json"},
+                    auth=self._get_auth(),
+                )
+                if response.status_code == 201:
+                    key = response.json().get("key", "")
+                    logger.info(f"✅ Bilet açıldı: {key}")
+                    return key
+                logger.error(f"❌ Jira Bilet Açma Hatası ({response.status_code}): {response.text[:300]}")
+        except Exception as e:
+            logger.error(f"❌ Jira Bağlantı Hatası (Bilet Açma): {str(e)}")
+        return ""
 
     async def transition_ticket_status(self, ticket_id: str, target_status: str) -> bool:
         url = f"{self._base_url()}/rest/api/3/issue/{ticket_id}/transitions"

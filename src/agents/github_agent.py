@@ -15,9 +15,11 @@ class GitHubAgent(BaseAgent):
         super().__init__(name, model_client)
         self.llm = model_client or LLMClient()
         # Baglanti verilmediyse global env ayarlarina dus (tek repo geriye uyumlulugu)
+        # Acik secilmis baglantida bos token = anonim erisim (env'ye dusme!)
         c = connection or {}
+        explicit = bool(connection)
         self.base_url = (c.get("base_url") or "https://api.github.com").rstrip("/")
-        self.token = c.get("token") or settings.GITHUB_TOKEN
+        self.token = c.get("token") if explicit else (c.get("token") or settings.GITHUB_TOKEN)
         self.default_owner = c.get("owner") or settings.GITHUB_OWNER
         self.project_key = c.get("project_key") or settings.JIRA_PROJECT_KEY
         self.register_tool("fetch_commits", self.fetch_commits)
