@@ -76,7 +76,14 @@
         if (window.switchView) window.switchView("data");
       }
       paintStats(); paintRepos();
-    } catch (e) { toast("Run listesi alınamadı: " + e.message); }
+    } catch (e) {
+      runs = [];
+      list.innerHTML = '<div class="rounded-xl p-6 text-center text-sm" style="background:#1e293b;border:1px solid #334155;color:#ef4444">'
+        + "API'ye ulaşılamadı: " + esc(e.message) + "</div>";
+      paintStats(); paintRepos();
+      if (window.switchView) window.switchView("data");
+      toast("Run listesi alınamadı: " + e.message);
+    }
   }
 
   window.navigateToDetail = function (id) { location.href = "run-detail.html?id=" + encodeURIComponent(id); };
