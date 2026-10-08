@@ -9,18 +9,23 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("JiraAgent")
 
 class JiraAgent(BaseAgent):
-    def __init__(self, name: str = "JiraAgent", model_client: Any = None):
+    def __init__(self, name: str = "JiraAgent", model_client: Any = None, connection: Dict[str, Any] = None):
         super().__init__(name, model_client)
         self.llm = model_client or LLMClient()
+        c = connection or {}
+        self.base_url_cfg = (c.get("base_url") or settings.JIRA_DOMAIN).rstrip("/")
+        self.email = c.get("email") or settings.JIRA_USER_EMAIL
+        self.token = c.get("token") or settings.JIRA_API_TOKEN
+        self.project_key = c.get("project_key") or settings.JIRA_PROJECT_KEY
         self.register_tool("add_comment_to_ticket", self.add_comment_to_ticket)
         self.register_tool("transition_ticket_status", self.transition_ticket_status)
 
     def _get_auth(self) -> httpx.BasicAuth:
-        return httpx.BasicAuth(username=settings.JIRA_USER_EMAIL, password=settings.JIRA_API_TOKEN)
+        return httpx.BasicAuth(username=self.email, password=self.token)
 
     def _base_url(self) -> str:
         # settings.JIRA_DOMAIN sonunda "/" olsa bile çift slash oluşmasını engeller
-        return settings.JIRA_DOMAIN.rstrip("/")
+        return self.base_url_cfg.rstrip("/")
 
     async def ticket_exists(self, ticket_id: str) -> bool:
         """

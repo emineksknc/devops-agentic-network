@@ -12,16 +12,28 @@ from src.config.settings import settings
 logger = logging.getLogger("OrchestratorAgent")
 
 class OrchestratorAgent(BaseAgent):
-    def __init__(self, name: str = "OrchestratorAgent", model_client: Any = None):
+    def __init__(self, name: str = "OrchestratorAgent", model_client: Any = None, connections: Dict[str, Any] = None):
         super().__init__(name, model_client)
         self.llm = model_client or LLMClient()
-        
-        self.github_worker = GitHubAgent()
-        self.jira_worker = JiraAgent()
+
+        conns = connections or {}
+        github_conn = conns.get("github") or {}
+        jira_conn = conns.get("jira") or {}
+
+        self.github_worker = GitHubAgent(connection=github_conn)
+        # Bilet anahtari Jira baglantisindan gelir (cok projeli kurumlar)
+        if jira_conn.get("project_key"):
+            self.github_worker.project_key = jira_conn["project_key"]
+        self.jira_worker = JiraAgent(connection=jira_conn)
         self.reporter_worker = ReporterAgent()
         self.reviewer_worker = ReviewerAgent()  # 🎯 2. Ajanı ayağa kaldırıyoruz
 
-    async def route_and_execute(self, user_goal: str) -> Dict[str, Any]:
+    async def route_and_execute(
+        self,
+        user_goal: str,
+        dry_run: bool = False,
+        github_context: Dict[str, Any] = None,
+    ) -> Dict[str, Any]:
         logger.info("🎼 Şef Ajan (Orchestrator) otonom iş planı hazırlıyor...")
 
         system_prompt = (
@@ -66,7 +78,12 @@ class OrchestratorAgent(BaseAgent):
             # 1. GITHUB ADIMI
             if step == "github_agent":
                 print(f"[Orchestrator] ⚙️ LLM Kararı: github_agent tetikleniyor...")
-                github_context = {"owner": settings.GITHUB_OWNER, "repo": settings.GITHUB_REPO, "count": 3}
+                gh = github_context or {}
+                github_context = {
+                    "owner": gh.get("owner") or self.github_worker.default_owner,
+                    "repo": gh.get("repo", settings.GITHUB_REPO),
+                    "count": gh.get("count", 3),
+                }
                 github_result = await self.github_worker.run("Scan", context=github_context)
 
                 # 🎯 Her commit kendi bilet ID'si + diff'iyle izole bir "birim" (unit) olarak taşınıyor
@@ -131,7 +148,24 @@ class OrchestratorAgent(BaseAgent):
                             "review_passed": True
                         }
 
-                    await self.jira_worker.run("Update", context=jira_context)
+                    if dry_run:
+                        # Web API modu: Jira'ya yazmadan planı kaydet,
+                        # approve endpoint'i sonradan gercek yazmayi yapar.
+                        context.setdefault("jira_planned", []).append(
+                            {
+                                "commit_sha": unit.get("sha"),
+                                "short_sha": unit.get("short_sha"),
+                                "jira_ids": list(unit["jira_ids"]),
+                                "review_passed": unit_review_passed,
+                                "code_changes": jira_context["code_changes"],
+                                "action": "both",
+                            }
+                        )
+                        logger.info(
+                            f"🧪 dry-run: {unit['jira_ids']} icin Jira yazmasi atlandi, plan kaydedildi."
+                        )
+                    else:
+                        await self.jira_worker.run("Update", context=jira_context)
 
                 if not any_ticket_processed:
                     logger.info(
@@ -167,11 +201,23 @@ class OrchestratorAgent(BaseAgent):
 
         return {
             "status": "success" if review_passed else "partially_blocked",
-            "final_report": context.get("final_report", "Güvenlik blokajı nedeniyle sürüm bülteni raporu üretilmedi.")
+            "final_report": context.get("final_report", "Güvenlik blokajı nedeniyle sürüm bülteni raporu üretilmedi."),
+            "commit_units": context.get("commit_units", []),
+            "jira_planned": context.get("jira_planned", []),
+            "dry_run": dry_run,
         }
 
-    async def run(self, task_description: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
-        return await self.route_and_execute(task_description)
+    async def run(
+        self,
+        task_description: str,
+        context: Dict[str, Any] = None,
+        dry_run: bool = False,
+        github_context: Dict[str, Any] = None,
+    ) -> Dict[str, Any]:
+        context = context or {}
+        if context.get("dry_run") is True:
+            dry_run = True
+        return await self.route_and_execute(task_description, dry_run=dry_run, github_context=github_context)
 
     def get_tool_schemas(self) -> List[Dict[str, Any]]:
         return []

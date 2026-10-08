@@ -11,6 +11,7 @@ class LLMClient:
     def __init__(self):
         # .env dosyasında LLM_MODEL tanımlanmadıysa varsayılan olarak llama3 kullanır
         self.model = getattr(settings, "LLM_MODEL", "llama3")
+        self.host = getattr(settings, "OLLAMA_HOST", "http://localhost:11434")
 
     async def generate_response(self, system_prompt: str, user_prompt: str, response_format: str = None) -> str:
         """
@@ -21,7 +22,10 @@ class LLMClient:
         """
         try:
             # ollama.AsyncClient kullanarak event-loop'u bloke etmeden istek atıyoruz
-            client = ollama.AsyncClient()
+            try:
+                client = ollama.AsyncClient(host=self.host)
+            except TypeError:
+                client = ollama.AsyncClient()
             request_kwargs = {
                 "model": self.model,
                 "messages": [

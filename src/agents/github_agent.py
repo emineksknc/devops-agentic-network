@@ -11,25 +11,34 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("GitHubAgent")
 
 class GitHubAgent(BaseAgent):
-    def __init__(self, name: str = "GitHubAgent", model_client: Any = None):
+    def __init__(self, name: str = "GitHubAgent", model_client: Any = None, connection: Dict[str, Any] = None):
         super().__init__(name, model_client)
         self.llm = model_client or LLMClient()
+        # Baglanti verilmediyse global env ayarlarina dus (tek repo geriye uyumlulugu)
+        c = connection or {}
+        self.base_url = (c.get("base_url") or "https://api.github.com").rstrip("/")
+        self.token = c.get("token") or settings.GITHUB_TOKEN
+        self.default_owner = c.get("owner") or settings.GITHUB_OWNER
+        self.project_key = c.get("project_key") or settings.JIRA_PROJECT_KEY
         self.register_tool("fetch_commits", self.fetch_commits)
         self.register_tool("fetch_commit_diff", self.fetch_commit_diff)
         self.register_tool("extract_jira_ids", self.extract_jira_ids)
+
+    def _headers(self) -> Dict[str, str]:
+        headers = {
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "DevOps-Agentic-Network"
+        }
+        if self.token and self.token != "mock_github_token":
+            headers["Authorization"] = f"token {self.token}"
+        return headers
 
     async def fetch_commits(self, repo_owner: str, repo_name: str, count: int = 5) -> List[Dict[str, Any]]:
         """
         GitHub REST API'sine canlı token ile asenkron HTTP isteği atar ve commit listesini döner.
         """
-        url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/commits"
-        headers = {
-            "Accept": "application/vnd.github+json",
-            "User-Agent": "DevOps-Agentic-Network"
-        }
-        
-        if settings.GITHUB_TOKEN and settings.GITHUB_TOKEN != "mock_github_token":
-            headers["Authorization"] = f"token {settings.GITHUB_TOKEN}"
+        url = f"{self.base_url}/repos/{repo_owner}/{repo_name}/commits"
+        headers = self._headers()
 
         try:
             logger.info(f"📡 GitHub Canlı API'sine istek atılıyor: {repo_owner}/{repo_name}")
@@ -61,14 +70,8 @@ class GitHubAgent(BaseAgent):
         if not sha:
             return ""
             
-        url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/commits/{sha}"
-        headers = {
-            "Accept": "application/vnd.github+json",
-            "User-Agent": "DevOps-Agentic-Network"
-        }
-        
-        if settings.GITHUB_TOKEN and settings.GITHUB_TOKEN != "mock_github_token":
-            headers["Authorization"] = f"token {settings.GITHUB_TOKEN}"
+        url = f"{self.base_url}/repos/{repo_owner}/{repo_name}/commits/{sha}"
+        headers = self._headers()
 
         try:
             logger.info(f"📡 GitHub Diff API'sine istek atılıyor: {sha[:7]}")
@@ -101,7 +104,7 @@ class GitHubAgent(BaseAgent):
            serbest formatlı mesajlar), lokal LLM'e (Ollama) semantik olarak sorar.
         Bu sayede hem hızlı/deterministik yol korunur hem de esnek formatlar kaçırılmaz.
         """
-        project_key = getattr(settings, "JIRA_PROJECT_KEY", "SCRUM")
+        project_key = getattr(self, "project_key", None) or getattr(settings, "JIRA_PROJECT_KEY", "SCRUM")
         jira_pattern = rf"({re.escape(project_key)}-\d+)"
 
         jira_ids: List[str] = []
