@@ -24,7 +24,24 @@ HREFS = {
     "politikalar": "policies.html",
     "denetim-izi": "audit.html",
     "ayarlar": "settings.html",
+    "ajanlar": "agents.html",
+    "gelistiriciler": "developers.html",
 }
+
+PAGE_SCRIPTS = {
+    "runs": ["api.js", "runs.js"],
+    "run-detail": ["api.js", "run-detail.js"],
+    "policies": ["api.js", "policies.js"],
+    "audit": ["api.js", "audit.js"],
+    "settings": ["api.js", "settings.js"],
+    "agents": ["api.js", "agents.js"],
+    "developers": ["api.js", "developers.js"],
+}
+
+NAV_EXTRA = [
+    ("ajanlar", "agents.html", "smart_toy", "Ajanlar"),
+    ("gelistiriciler", "developers.html", "group", "Geliştiriciler"),
+]
 
 SIDEBAR_WIDTH = "240px"
 
@@ -74,6 +91,8 @@ WEB_JS = """// Web kabugu: aktif sayfa isaretleme + mobil cekmece davranisi koru
     policies: ["politikalar"],
     audit: ["denetim-izi"],
     settings: ["ayarlar"],
+    agents: ["ajanlar"],
+    developers: ["gelistiriciler"],
   };
   var active = map[page] || [];
   document.querySelectorAll("aside nav a, body > nav a").forEach(function (a) {
@@ -86,6 +105,27 @@ WEB_JS = """// Web kabugu: aktif sayfa isaretleme + mobil cekmece davranisi koru
   });
 })();
 """
+
+
+def _inject_nav_links(html: str) -> str:
+    """Cekmeceye Ajanlar + Gelistiriciler linkleri (ayarlar oncesi)."""
+    import re
+
+    m = re.search(r'<a[^>]*data-path="ayarlar"[^>]*>.*?</a>', html, re.DOTALL)
+    if not m:
+        return html
+    anchor = m.group(0)
+    extras = ""
+    for path, href, icon, label in NAV_EXTRA:
+        item = re.sub(r'data-path="ayarlar"', f'data-path="{path}"', anchor)
+        item = re.sub(r'href="[^"]*"', f'href="{href}"', item, count=1)
+        item = re.sub(r"<span[^>]*material-symbols[^>]*>.*?</span>", f'<span class="material-symbols-outlined">{icon}</span>', item, count=1)
+        item = item.replace(">Ayarlar</span>", f">{label}</span>")
+        # aktiflik class'larini temizle (web.js seciyor)
+        item = item.replace("bg-surface-container-highest text-primary font-semibold", "text-on-surface-variant hover:text-on-surface hover:bg-surface-container")
+        item = item.replace(' aria-current="page"', "")
+        extras += item
+    return html.replace(anchor, extras + anchor, 1)
 
 
 def adapt(html: str, page: str) -> str:
@@ -110,6 +150,8 @@ def adapt(html: str, page: str) -> str:
     for key, target in HREFS.items():
         html = html.replace('data-path="%s" href="#"' % key,
                             'data-path="%s" href="%s"' % (key, target))
+    # 3b) cekmeceye yeni ekran linkleri
+    html = _inject_nav_links(html)
     # 4) body'ye sayfa kimligi + asset referanslari (</head> oncesi CSS, </body> oncesi JS)
     html = html.replace("<body", '<body data-page="%s"' % page, 1)
     html = html.replace(
@@ -118,7 +160,10 @@ def adapt(html: str, page: str) -> str:
         1,
     )
     if "</body>" in html:
-        html = html.replace("</body>", '<script src="assets/web.js"></script>\n</body>', 1)
+        scripts = '<script src="assets/web.js"></script>\n'
+        for js in PAGE_SCRIPTS.get(page, []):
+            scripts += f'<script src="assets/{js}"></script>\n'
+        html = html.replace("</body>", scripts + "</body>", 1)
     else:
         html += '\n<script src="assets/web.js"></script>\n'
     # 5) run-detail: web'de ustte kirinti (breadcrumb) + masaustu iki sutun
@@ -178,6 +223,33 @@ def main() -> None:
     for out_name, html in built.items():
         (DST / out_name).write_text(html, encoding="utf-8")
         print("yazildi:", DST / out_name)
+
+    # Bizim ekranlar: runs iskeletinden uretilen kabuk + kendi baglama scripti
+    _build_custom_page(built["runs.html"], "agents.html", "agents", "Ajanlar")
+    _build_custom_page(built["runs.html"], "developers.html", "developers", "Geliştiriciler")
+
+
+def _build_custom_page(shell: str, out_name: str, page: str, title: str) -> None:
+    import re
+
+    html = shell.replace('data-page="runs"', f'data-page="{page}"', 1)
+    html = html.replace("<title>DevOps Agentic Network</title>",
+                        f"<title>{title} - DevOps Agentic Network</title>", 1)
+    new_main = (
+        '<main class="flex flex-col relative w-full pt-[100px] pb-24 bg-surface min-h-screen">'
+        '<div class="flex flex-col w-full px-gutter space-y-space-md" id="page-root">'
+        '<p class="text-xs" style="color:#94a3b8">Yükleniyor…</p>'
+        "</div></main>"
+    )
+    html = re.sub(r"<main.*?</main>", new_main, html, count=1, flags=re.DOTALL)
+    scripts = '<script src="assets/web.js"></script>\n'
+    for js in PAGE_SCRIPTS.get(page, []):
+        scripts += f'<script src="assets/{js}"></script>\n'
+    # eski sayfa scriptlerini sok, yenilerini tak
+    html = re.sub(r'<script src="assets/(web|api|runs)\.js"></script>\n?', "", html)
+    html = html.replace("</body>", scripts + "</body>", 1)
+    (DST / out_name).write_text(html, encoding="utf-8")
+    print("yazildi:", DST / out_name)
 
     index = DST / "index.html"
     index.write_text(

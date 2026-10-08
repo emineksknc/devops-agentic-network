@@ -21,7 +21,7 @@ async def list_agents() -> list[dict]:
     _register_defaults()
     out = []
     with db.connect() as conn:
-        rows = {r["agent_name"]: r for r in conn.execute("SELECT * FROM agent_configs").fetchall()}
+        rows = {r["agent_name"]: dict(r) for r in conn.execute("SELECT * FROM agent_configs").fetchall()}
     for name in ("github_agent", "reviewer_agent", "jira_agent", "reporter_agent", "orchestrator"):
         ov = rows.get(name, {})
         out.append({

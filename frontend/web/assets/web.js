@@ -7,6 +7,8 @@
     policies: ["politikalar"],
     audit: ["denetim-izi"],
     settings: ["ayarlar"],
+    agents: ["ajanlar"],
+    developers: ["gelistiriciler"],
   };
   var active = map[page] || [];
   document.querySelectorAll("aside nav a, body > nav a").forEach(function (a) {
