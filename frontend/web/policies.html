@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="tr"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><meta content="mobile_tab" name="shell-type"/><title>DevOps Agentic Network</title><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{width:100vw;margin:0;padding:0;background-color:#0b1326;color:#dae2fd;}body{overscroll-behavior:none;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { colors: { "background": "#0b1326", "secondary-fixed": "#6ffbbe", "on-secondary": "#003824", "on-surface-variant": "#c7c4d7", "surface-bright": "#31394d", "surface-container-highest": "#2d3449", "on-tertiary-fixed": "#2a1700", "primary-fixed-dim": "#c0c1ff", "tertiary-fixed-dim": "#ffb95f", "surface-tint": "#c0c1ff", "outline": "#908fa0", "on-tertiary": "#472a00", "secondary-container": "#00a572", "on-secondary-fixed": "#002113", "on-secondary-container": "#00311f", "on-primary-fixed": "#07006c", "surface-variant": "#2d3449", "surface-container-lowest": "#060e20", "inverse-primary": "#494bd6", "tertiary-fixed": "#ffddb8", "on-tertiary-container": "#3e2400", "surface-container-high": "#222a3d", "tertiary": "#ffb95f", "on-error": "#690005", "primary-container": "#8083ff", "on-primary-container": "#0d0096", "on-background": "#dae2fd", "error-container": "#93000a", "inverse-on-surface": "#283044", "on-tertiary-fixed-variant": "#653e00", "primary": "#c0c1ff", "secondary": "#4edea3", "tertiary-container": "#ca8100", "secondary-fixed-dim": "#4edea3", "surface": "#0b1326", "on-error-container": "#ffdad6", "on-primary-fixed-variant": "#2f2ebe", "surface-container": "#171f33", "on-secondary-fixed-variant": "#005236", "outline-variant": "#464554", "surface-container-low": "#131b2e", "error": "#ffb4ab", "on-primary": "#1000a9", "primary-fixed": "#e1e0ff", "inverse-surface": "#dae2fd", "surface-dim": "#0b1326", "on-surface": "#dae2fd" }, borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, spacing: { "margin": "1rem", "space-xs": "0.25rem", "gutter": "1rem", "margin-desktop": "2rem", "space-lg": "1rem", "space-md": "0.75rem", "gutter-desktop": "1.5rem", "space-sm": "0.5rem", "space-xl": "1.5rem" }, fontFamily: { "code-md": ["JetBrains Mono"], "body-sm": ["Inter"], "title-sm": ["Inter"], "headline-xl": ["Inter"], "label-xs": ["JetBrains Mono"], "headline-md": ["Inter"], "headline-lg": ["Inter"], "code-sm": ["JetBrains Mono"], "body-md": ["Inter"] }, fontSize: { "code-md": ["13px", { "lineHeight": "18px", "letterSpacing": "-0.01em", "fontWeight": "500" }], "body-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0em", "fontWeight": "400" }], "title-sm": ["16px", { "lineHeight": "24px", "letterSpacing": "-0.005em", "fontWeight": "600" }], "headline-xl": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }], "label-xs": ["10px", { "lineHeight": "14px", "letterSpacing": "0.06em", "fontWeight": "600" }], "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }], "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "600" }], "code-sm": ["11px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }], "body-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "400" }] } } } };</script><link rel="stylesheet" href="assets/web.css" />
+</head><body data-page="policies" class="bg-surface font-body-md text-on-surface flex flex-col min-h-screen"><header class="fixed top-0 w-full z-50 bg-surface/90 backdrop-blur-xl pt-safe shadow-[0_1px_8px_rgba(0,0,0,0.4)]"><div class="h-16 px-gutter flex items-center justify-between gap-space-sm"><div class="flex items-center gap-space-sm min-w-0"><button aria-label="Menüyü Aç" class="w-11 h-11 flex items-center justify-center rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors" id="drawer-toggle-btn" onclick="document.getElementById('mobile-nav-drawer').classList.toggle('-translate-x-full');document.getElementById('drawer-backdrop').classList.toggle('hidden');"><span class="material-symbols-outlined">menu</span></button><img alt="DevOps Agentic Network Logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDPAqExe1KsgqIW1xPKcDqNtjh-xsB84m1ojcTE9osnQpJlVLAwAxQDYe0hQD-oG1mpRvPinSFyVRUwtDwZxHew-5Nq-W9Xv5kJVvDjcKado82BwfFqjOKfwSsQ_KIrboiJOh__I6EbFwdg-YdQhLKsDUTHHGveAYqNgKGzK-RDzC4bsn3vfkCJ9KTx7dlpJ3ycGTR5E69aVGGrPjIPPdGsHW8IcqFKI3eGk__W5jk"/><div class="flex flex-col min-w-0"><span class="font-title-sm text-title-sm text-on-surface truncate">DevOps Agentic</span><div class="flex items-center gap-space-xs"><span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-surface-container-high text-secondary font-code-sm text-code-sm leading-none"><span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span>PROD-EU-1</span></div></div></div><div class="flex items-center gap-space-sm"><div class="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded bg-surface-container text-on-surface-variant font-code-sm text-code-sm"><span class="material-symbols-outlined text-[16px] text-tertiary">science</span><span class="font-code-sm text-code-sm text-on-surface-variant">Dry-Run:</span><span class="text-secondary font-code-sm text-code-sm font-semibold">Aktif</span></div><div class="relative flex items-center"><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBMTqwaJ5oIzjZFG5uqiJ5oy8uXF635NTDd7Kz15iiZENyFsQ-UtAjTYDxWLN-7CwRblBy84hMgOH_nb3N0Y58bZpEIA2tMNMQpmhiEW5X4CPWmYkayOtUpdLS1I5VPuy_VAGyqXboGle5ny_fZkdM9ii8VG67gWzAG6lfN6so-hOwEhqjZhiqMYNT8ggJoXrtQsBFUy99caKMyNb92wXOcj8ub6tCzHt8b42kWoNs"/><span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-secondary ring-2 ring-surface"></span></div></div></div><div class="h-9 px-gutter bg-surface-container-low flex items-center justify-between"><div class="flex items-center gap-space-xs overflow-hidden"><span class="material-symbols-outlined text-[16px] text-primary">terminal</span><span class="font-code-sm text-code-sm text-primary uppercase tracking-wider truncate">Politikalar</span></div><button class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-code-sm text-code-sm active:bg-surface-container-highest" onclick="const s=this.querySelector('.dry-state');const a=s.innerText==='Aktif';s.innerText=a?'Pasif':'Aktif';s.className=a?'dry-state text-on-surface-variant font-code-sm text-code-sm font-semibold':'dry-state text-secondary font-code-sm text-code-sm font-semibold';"><span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span><span class="text-on-surface-variant">Dry-Run:</span><span class="dry-state text-secondary font-code-sm text-code-sm font-semibold">Aktif</span></button></div></header><div class="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm hidden transition-opacity" id="drawer-backdrop" onclick="document.getElementById('mobile-nav-drawer').classList.add('-translate-x-full');this.classList.add('hidden');"></div><aside class="fixed top-0 bottom-0 left-0 z-50 w-72 bg-surface-container-low backdrop-blur-xl shadow-2xl transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col pt-safe pb-safe" id="mobile-nav-drawer" data-web-sidebar><div class="h-16 px-gutter flex items-center justify-between bg-surface-container"><div class="flex items-center gap-space-sm"><img alt="DevOps Agentic Network Logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDPAqExe1KsgqIW1xPKcDqNtjh-xsB84m1ojcTE9osnQpJlVLAwAxQDYe0hQD-oG1mpRvPinSFyVRUwtDwZxHew-5Nq-W9Xv5kJVvDjcKado82BwfFqjOKfwSsQ_KIrboiJOh__I6EbFwdg-YdQhLKsDUTHHGveAYqNgKGzK-RDzC4bsn3vfkCJ9KTx7dlpJ3ycGTR5E69aVGGrPjIPPdGsHW8IcqFKI3eGk__W5jk"/><span class="font-title-sm text-title-sm text-on-surface">DevOps Ajanı</span></div><button aria-label="Menüyü Kapat" class="w-11 h-11 flex items-center justify-center rounded-lg text-on-surface-variant hover:text-on-surface" onclick="document.getElementById('mobile-nav-drawer').classList.add('-translate-x-full');document.getElementById('drawer-backdrop').classList.add('hidden');"><span class="material-symbols-outlined">close</span></button></div><div class="p-gutter bg-surface-container-lowest flex items-center gap-space-sm"><img alt="Profile" class="w-10 h-10 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBMTqwaJ5oIzjZFG5uqiJ5oy8uXF635NTDd7Kz15iiZENyFsQ-UtAjTYDxWLN-7CwRblBy84hMgOH_nb3N0Y58bZpEIA2tMNMQpmhiEW5X4CPWmYkayOtUpdLS1I5VPuy_VAGyqXboGle5ny_fZkdM9ii8VG67gWzAG6lfN6so-hOwEhqjZhiqMYNT8ggJoXrtQsBFUy99caKMyNb92wXOcj8ub6tCzHt8b42kWoNs"/><div class="flex flex-col min-w-0"><span class="font-title-sm text-title-sm text-on-surface truncate">Baş Sistem Mimarı</span><div class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-secondary"></span><span class="font-code-sm text-code-sm text-secondary">Tech Lead · Online</span></div></div></div><nav class="flex-1 overflow-y-auto p-space-sm space-y-1" data-active-classes="bg-surface-container-highest text-primary font-semibold"><a class="flex items-center gap-space-md px-gutter py-space-md rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" data-path="calistirmalar" href="runs.html"><span class="material-symbols-outlined">play_arrow</span><span class="font-body-md text-body-md">Çalıştırmalar</span></a><a class="flex items-center gap-space-md px-gutter py-space-md rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" data-path="calistirma-detayi" href="run-detail.html"><span class="material-symbols-outlined">account_tree</span><span class="font-body-md text-body-md">Çalıştırma Detayı</span></a><a aria-current="page" class="flex items-center gap-space-md px-gutter py-space-md rounded-lg transition-colors bg-surface-container-highest text-primary font-semibold" data-path="politikalar" href="policies.html"><span class="material-symbols-outlined">gavel</span><span class="font-body-md text-body-md">Politikalar</span></a><a class="flex items-center gap-space-md px-gutter py-space-md rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" data-path="denetim-izi" href="audit.html"><span class="material-symbols-outlined">receipt_long</span><span class="font-body-md text-body-md">Denetim İzi</span></a><a class="flex items-center gap-space-md px-gutter py-space-md rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" data-path="ayarlar" href="settings.html"><span class="material-symbols-outlined">settings</span><span class="font-body-md text-body-md">Ayarlar</span></a></nav><div class="p-gutter bg-surface-container-lowest flex items-center justify-between"><span class="font-code-sm text-code-sm text-outline">PROD-EU-1 v2.4.0</span><span class="inline-flex items-center gap-1 font-code-sm text-code-sm text-secondary"><span class="w-1.5 h-1.5 rounded-full bg-secondary animate-ping"></span>Aktif</span></div></aside><main class="flex flex-col relative w-full pt-[100px] pb-24 bg-surface min-h-screen"><div class="flex flex-col w-full px-gutter space-y-space-lg">
+<!-- Toast Notification Container -->
+<div class="fixed top-24 left-1/2 -translate-x-1/2 z-50 flex items-center gap-space-sm px-gutter py-space-sm bg-surface-container-highest text-secondary shadow-xl rounded-full opacity-0 pointer-events-none transition-all duration-300" id="policy-toast">
+<span class="material-symbols-outlined text-[18px]">verified</span>
+<span class="font-code-sm text-code-sm" id="policy-toast-msg">Kural testi simülasyonu başarıyla tamamlandı.</span>
+</div>
+<!-- Header Banner Section -->
+<div class="flex flex-col space-y-space-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary text-[20px]">policy</span>
+<span class="font-label-xs text-label-xs text-primary uppercase tracking-wider">Otonom Sözleşmeler v2.4</span>
+</div>
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-surface-container-high text-secondary font-code-sm text-code-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span> 3 Aktif Eşleşme
+      </span>
+</div>
+<h1 class="font-headline-md text-headline-md text-on-surface font-bold">Ajan Politikaları ve Entegrasyon Kuralları</h1>
+<p class="font-body-sm text-body-sm text-on-surface-variant">GitHub depoları ve Jira projeleri arasındaki otonom tetikleyici ve onay kuralları</p>
+<!-- Create Button -->
+<div class="pt-space-xs">
+<button class="w-full flex items-center justify-center gap-space-sm py-2.5 px-gutter rounded-lg bg-primary-container hover:bg-inverse-primary text-on-primary-container hover:text-surface font-title-sm text-title-sm transition-all shadow-md active:scale-[0.99]" onclick="openPolicyModal('org/yeni-servis', 'OPS (Operasyon)', 'Ready for Staging', 'Blocked', true, true, false)">
+<span class="material-symbols-outlined text-[20px]">add_moderator</span>
+<span>+ Yeni Politika Kuralı Tanımla</span>
+</button>
+</div>
+</div>
+<!-- Summary Metric Chips -->
+<div class="grid grid-cols-3 gap-space-sm">
+<div class="flex flex-col p-space-sm bg-surface-container rounded-lg shadow-sm">
+<span class="font-label-xs text-label-xs text-outline">SENKRONİZE</span>
+<span class="font-code-md text-code-md text-secondary font-bold">100% Jira API</span>
+</div>
+<div class="flex flex-col p-space-sm bg-surface-container rounded-lg shadow-sm">
+<span class="font-label-xs text-label-xs text-outline">GÜVENLİK</span>
+<span class="font-code-md text-code-md text-primary font-bold">Katı Onay</span>
+</div>
+<div class="flex flex-col p-space-sm bg-surface-container rounded-lg shadow-sm">
+<span class="font-label-xs text-label-xs text-outline">GECİKME</span>
+<span class="font-code-md text-code-md text-tertiary font-bold">&lt; 140ms</span>
+</div>
+</div>
+<!-- Policy Cards List -->
+<div class="flex flex-col space-y-space-md">
+<!-- Card 1: org/payment-gateway -->
+<div class="flex flex-col p-space-lg rounded-xl bg-surface-container shadow-md transition-all hover:bg-surface-container-high">
+<!-- Card Top Info -->
+<div class="flex items-start justify-between gap-space-sm">
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-primary">terminal</span>
+<span class="font-code-md text-code-md text-on-surface font-bold truncate">org/payment-gateway</span>
+</div>
+<div class="flex items-center gap-1 mt-1 text-on-surface-variant font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-[15px] text-tertiary">alt_route</span>
+<span>Hedef Jira:</span>
+<span class="font-code-sm text-code-sm text-primary font-semibold">PAY (Ödeme Sistemleri)</span>
+</div>
+</div>
+<span class="inline-flex items-center px-2 py-0.5 rounded bg-surface-container-highest text-secondary font-code-sm text-code-sm">
+          PCI-DSS Tier-1
+        </span>
+</div>
+<!-- Transitions Badges -->
+<div class="grid grid-cols-2 gap-space-sm mt-space-md p-space-sm bg-surface-container-lowest rounded-lg">
+<div class="flex flex-col gap-0.5">
+<span class="font-label-xs text-label-xs text-outline">BAŞARILI GEÇİŞ (ON_PASS)</span>
+<div class="inline-flex items-center gap-1 text-secondary font-code-sm text-code-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span class="font-semibold">Ready for Staging</span>
+</div>
+</div>
+<div class="flex flex-col gap-0.5">
+<span class="font-label-xs text-label-xs text-outline">BAŞARISIZ GEÇİŞ (ON_FAIL)</span>
+<div class="inline-flex items-center gap-1 text-error font-code-sm text-code-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+<span class="font-semibold truncate">Blocked / Security Review</span>
+</div>
+</div>
+</div>
+<!-- Toggles Grid -->
+<div class="flex flex-col space-y-space-sm mt-space-md">
+<!-- Toggle 1 -->
+<div class="flex items-center justify-between py-1">
+<div class="flex flex-col min-w-0 pr-2">
+<span class="font-body-md text-body-md text-on-surface font-medium truncate">Otomatik Bilet Yorumu</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Jira biletlerine ajan çalıştırma özetini yaz</span>
+</div>
+<button aria-checked="true" class="w-11 h-6 flex items-center bg-secondary-container rounded-full p-1 cursor-pointer transition-colors shrink-0" onclick="toggleSwitch(this)" role="switch" type="button">
+<div class="w-4 h-4 bg-on-secondary rounded-full transform translate-x-5 transition-transform duration-200"></div>
+</button>
+</div>
+<!-- Toggle 2 -->
+<div class="flex items-center justify-between py-1">
+<div class="flex flex-col min-w-0 pr-2">
+<span class="font-body-md text-body-md text-on-surface font-medium truncate">İnsan Onayı Zorunlu</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Kritik değişikliklerde en az 1 onay gerektirir</span>
+</div>
+<button aria-checked="true" class="w-11 h-6 flex items-center bg-secondary-container rounded-full p-1 cursor-pointer transition-colors shrink-0" onclick="toggleSwitch(this)" role="switch" type="button">
+<div class="w-4 h-4 bg-on-secondary rounded-full transform translate-x-5 transition-transform duration-200"></div>
+</button>
+</div>
+<!-- Toggle 3 -->
+<div class="flex items-center justify-between py-1">
+<div class="flex flex-col min-w-0 pr-2">
+<span class="font-body-md text-body-md text-on-surface font-medium truncate">Dry-Run Varsayılan</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Tetiklemelerde canlı ortam koruması uygula</span>
+</div>
+<button aria-checked="false" class="w-11 h-6 flex items-center bg-surface-bright rounded-full p-1 cursor-pointer transition-colors shrink-0" onclick="toggleSwitch(this)" role="switch" type="button">
+<div class="w-4 h-4 bg-outline rounded-full transform translate-x-0 transition-transform duration-200"></div>
+</button>
+</div>
+</div>
+<!-- Action Buttons -->
+<div class="flex items-center gap-space-sm mt-space-md pt-space-sm">
+<button class="flex-1 flex items-center justify-center gap-1.5 py-2 px-space-sm rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-secondary font-code-sm text-code-sm font-semibold transition-all shadow-sm active:scale-95" onclick="testPolicyRule('org/payment-gateway', 'PAY-4891')">
+<span class="material-symbols-outlined text-[16px]">play_circle</span>
+<span>Kuralları Test Et</span>
+</button>
+<button class="flex items-center justify-center gap-1.5 py-2 px-space-md rounded-lg bg-surface-container-highest hover:bg-surface-bright text-on-surface font-code-sm text-code-sm font-semibold transition-all shadow-sm active:scale-95" onclick="openPolicyModal('org/payment-gateway', 'PAY (Ödeme Sistemleri)', 'Ready for Staging', 'Blocked / Security Review', true, true, false)">
+<span class="material-symbols-outlined text-[16px]">tune</span>
+<span>Düzenle</span>
+</button>
+</div>
+</div>
+<!-- Card 2: org/backend-api -->
+<div class="flex flex-col p-space-lg rounded-xl bg-surface-container shadow-md transition-all hover:bg-surface-container-high">
+<!-- Card Top Info -->
+<div class="flex items-start justify-between gap-space-sm">
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-primary">terminal</span>
+<span class="font-code-md text-code-md text-on-surface font-bold truncate">org/backend-api</span>
+</div>
+<div class="flex items-center gap-1 mt-1 text-on-surface-variant font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-[15px] text-tertiary">alt_route</span>
+<span>Hedef Jira:</span>
+<span class="font-code-sm text-code-sm text-primary font-semibold">CORE (Çekirdek Servisler)</span>
+</div>
+</div>
+<span class="inline-flex items-center px-2 py-0.5 rounded bg-surface-container-highest text-primary font-code-sm text-code-sm">
+          gRPC v3
+        </span>
+</div>
+<!-- Transitions Badges -->
+<div class="grid grid-cols-2 gap-space-sm mt-space-md p-space-sm bg-surface-container-lowest rounded-lg">
+<div class="flex flex-col gap-0.5">
+<span class="font-label-xs text-label-xs text-outline">BAŞARILI GEÇİŞ (ON_PASS)</span>
+<div class="inline-flex items-center gap-1 text-secondary font-code-sm text-code-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span class="font-semibold truncate">QA Verification</span>
+</div>
+</div>
+<div class="flex flex-col gap-0.5">
+<span class="font-label-xs text-label-xs text-outline">BAŞARISIZ GEÇİŞ (ON_FAIL)</span>
+<div class="inline-flex items-center gap-1 text-error font-code-sm text-code-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+<span class="font-semibold truncate">Changes Requested</span>
+</div>
+</div>
+</div>
+<!-- Toggles Grid -->
+<div class="flex flex-col space-y-space-sm mt-space-md">
+<!-- Toggle 1 -->
+<div class="flex items-center justify-between py-1">
+<div class="flex flex-col min-w-0 pr-2">
+<span class="font-body-md text-body-md text-on-surface font-medium truncate">Otomatik Bilet Yorumu</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Jira biletlerine ajan çalıştırma özetini yaz</span>
+</div>
+<button aria-checked="true" class="w-11 h-6 flex items-center bg-secondary-container rounded-full p-1 cursor-pointer transition-colors shrink-0" onclick="toggleSwitch(this)" role="switch" type="button">
+<div class="w-4 h-4 bg-on-secondary rounded-full transform translate-x-5 transition-transform duration-200"></div>
+</button>
+</div>
+<!-- Toggle 2 -->
+<div class="flex items-center justify-between py-1">
+<div class="flex flex-col min-w-0 pr-2">
+<span class="font-body-md text-body-md text-on-surface font-medium truncate">İnsan Onayı Zorunlu</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Otomatik birleştirme politikasını serbest bırak</span>
+</div>
+<button aria-checked="false" class="w-11 h-6 flex items-center bg-surface-bright rounded-full p-1 cursor-pointer transition-colors shrink-0" onclick="toggleSwitch(this)" role="switch" type="button">
+<div class="w-4 h-4 bg-outline rounded-full transform translate-x-0 transition-transform duration-200"></div>
+</button>
+</div>
+<!-- Toggle 3 -->
+<div class="flex items-center justify-between py-1">
+<div class="flex flex-col min-w-0 pr-2">
+<span class="font-body-md text-body-md text-on-surface font-medium truncate">Dry-Run Varsayılan</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Gözlem amaçlı sanal çalıştırma aktif</span>
+</div>
+<button aria-checked="true" class="w-11 h-6 flex items-center bg-secondary-container rounded-full p-1 cursor-pointer transition-colors shrink-0" onclick="toggleSwitch(this)" role="switch" type="button">
+<div class="w-4 h-4 bg-on-secondary rounded-full transform translate-x-5 transition-transform duration-200"></div>
+</button>
+</div>
+</div>
+<!-- Action Buttons -->
+<div class="flex items-center gap-space-sm mt-space-md pt-space-sm">
+<button class="flex-1 flex items-center justify-center gap-1.5 py-2 px-space-sm rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-secondary font-code-sm text-code-sm font-semibold transition-all shadow-sm active:scale-95" onclick="testPolicyRule('org/backend-api', 'CORE-1102')">
+<span class="material-symbols-outlined text-[16px]">play_circle</span>
+<span>Kuralları Test Et</span>
+</button>
+<button class="flex items-center justify-center gap-1.5 py-2 px-space-md rounded-lg bg-surface-container-highest hover:bg-surface-bright text-on-surface font-code-sm text-code-sm font-semibold transition-all shadow-sm active:scale-95" onclick="openPolicyModal('org/backend-api', 'CORE (Çekirdek Servisler)', 'QA Verification', 'Changes Requested', true, false, true)">
+<span class="material-symbols-outlined text-[16px]">tune</span>
+<span>Düzenle</span>
+</button>
+</div>
+</div>
+<!-- Card 3: org/frontend-core -->
+<div class="flex flex-col p-space-lg rounded-xl bg-surface-container shadow-md transition-all hover:bg-surface-container-high">
+<!-- Card Top Info -->
+<div class="flex items-start justify-between gap-space-sm">
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-primary">terminal</span>
+<span class="font-code-md text-code-md text-on-surface font-bold truncate">org/frontend-core</span>
+</div>
+<div class="flex items-center gap-1 mt-1 text-on-surface-variant font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-[15px] text-tertiary">alt_route</span>
+<span>Hedef Jira:</span>
+<span class="font-code-sm text-code-sm text-primary font-semibold">WEB (Web Deneyimi)</span>
+</div>
+</div>
+<span class="inline-flex items-center px-2 py-0.5 rounded bg-surface-container-highest text-tertiary font-code-sm text-code-sm">
+          Edge CDN
+        </span>
+</div>
+<!-- Transitions Badges -->
+<div class="grid grid-cols-2 gap-space-sm mt-space-md p-space-sm bg-surface-container-lowest rounded-lg">
+<div class="flex flex-col gap-0.5">
+<span class="font-label-xs text-label-xs text-outline">BAŞARILI GEÇİŞ (ON_PASS)</span>
+<div class="inline-flex items-center gap-1 text-secondary font-code-sm text-code-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span class="font-semibold">Done</span>
+</div>
+</div>
+<div class="flex flex-col gap-0.5">
+<span class="font-label-xs text-label-xs text-outline">BAŞARISIZ GEÇİŞ (ON_FAIL)</span>
+<div class="inline-flex items-center gap-1 text-error font-code-sm text-code-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+<span class="font-semibold">In Progress</span>
+</div>
+</div>
+</div>
+<!-- Toggles Grid -->
+<div class="flex flex-col space-y-space-sm mt-space-md">
+<!-- Toggle 1 -->
+<div class="flex items-center justify-between py-1">
+<div class="flex flex-col min-w-0 pr-2">
+<span class="font-body-md text-body-md text-on-surface font-medium truncate">Otomatik Bilet Yorumu</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Jira biletlerine ajan çalıştırma özetini yaz</span>
+</div>
+<button aria-checked="true" class="w-11 h-6 flex items-center bg-secondary-container rounded-full p-1 cursor-pointer transition-colors shrink-0" onclick="toggleSwitch(this)" role="switch" type="button">
+<div class="w-4 h-4 bg-on-secondary rounded-full transform translate-x-5 transition-transform duration-200"></div>
+</button>
+</div>
+<!-- Toggle 2 -->
+<div class="flex items-center justify-between py-1">
+<div class="flex flex-col min-w-0 pr-2">
+<span class="font-body-md text-body-md text-on-surface font-medium truncate">İnsan Onayı Zorunlu</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Otomatik dağıtıma izin verilmiştir</span>
+</div>
+<button aria-checked="false" class="w-11 h-6 flex items-center bg-surface-bright rounded-full p-1 cursor-pointer transition-colors shrink-0" onclick="toggleSwitch(this)" role="switch" type="button">
+<div class="w-4 h-4 bg-outline rounded-full transform translate-x-0 transition-transform duration-200"></div>
+</button>
+</div>
+<!-- Toggle 3 -->
+<div class="flex items-center justify-between py-1">
+<div class="flex flex-col min-w-0 pr-2">
+<span class="font-body-md text-body-md text-on-surface font-medium truncate">Dry-Run Varsayılan</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Doğrudan canlı tetikleme modu devrede</span>
+</div>
+<button aria-checked="false" class="w-11 h-6 flex items-center bg-surface-bright rounded-full p-1 cursor-pointer transition-colors shrink-0" onclick="toggleSwitch(this)" role="switch" type="button">
+<div class="w-4 h-4 bg-outline rounded-full transform translate-x-0 transition-transform duration-200"></div>
+</button>
+</div>
+</div>
+<!-- Action Buttons -->
+<div class="flex items-center gap-space-sm mt-space-md pt-space-sm">
+<button class="flex-1 flex items-center justify-center gap-1.5 py-2 px-space-sm rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-secondary font-code-sm text-code-sm font-semibold transition-all shadow-sm active:scale-95" onclick="testPolicyRule('org/frontend-core', 'WEB-904')">
+<span class="material-symbols-outlined text-[16px]">play_circle</span>
+<span>Kuralları Test Et</span>
+</button>
+<button class="flex items-center justify-center gap-1.5 py-2 px-space-md rounded-lg bg-surface-container-highest hover:bg-surface-bright text-on-surface font-code-sm text-code-sm font-semibold transition-all shadow-sm active:scale-95" onclick="openPolicyModal('org/frontend-core', 'WEB (Web Deneyimi)', 'Done', 'In Progress', true, false, false)">
+<span class="material-symbols-outlined text-[16px]">tune</span>
+<span>Düzenle</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Interactive Policy Edit / Create Modal -->
+<div class="fixed inset-0 z-50 flex items-center justify-center px-gutter bg-surface-container-lowest/80 backdrop-blur-md hidden opacity-0 transition-opacity duration-300" id="policy-modal">
+<div class="relative w-full max-w-lg bg-surface-container-high rounded-xl shadow-2xl p-space-lg flex flex-col space-y-space-md max-h-[90vh] overflow-y-auto">
+<!-- Modal Header -->
+<div class="flex items-center justify-between pb-space-sm">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[22px]">tune</span>
+<h2 class="font-title-sm text-title-sm text-on-surface font-bold truncate" id="modal-title">Politika Düzenle (org/payment-gateway)</h2>
+</div>
+<button aria-label="Kapat" class="w-8 h-8 flex items-center justify-center rounded-lg bg-surface-container hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface transition-colors" onclick="closePolicyModal()">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<!-- Form Content -->
+<form class="flex flex-col space-y-space-md" id="policy-form" onsubmit="savePolicyChanges(event)">
+<!-- Repo Name Input -->
+<div class="flex flex-col space-y-1">
+<label class="font-label-xs text-label-xs text-on-surface-variant uppercase tracking-wider" for="input-repo">GitHub Deposu</label>
+<div class="flex items-center bg-surface-container-lowest rounded-lg px-space-md py-2 shadow-inner">
+<span class="material-symbols-outlined text-[16px] text-outline mr-2">source</span>
+<input class="bg-transparent border-0 outline-none w-full font-code-sm text-code-sm text-on-surface focus:ring-0 p-0" id="input-repo" required="" type="text" value="org/payment-gateway"/>
+</div>
+</div>
+<!-- Jira Project Select -->
+<div class="flex flex-col space-y-1">
+<label class="font-label-xs text-label-xs text-on-surface-variant uppercase tracking-wider" for="select-jira">Hedef Jira Projesi</label>
+<div class="flex items-center bg-surface-container-lowest rounded-lg px-space-md py-2 shadow-inner">
+<span class="material-symbols-outlined text-[16px] text-tertiary mr-2">confirmation_number</span>
+<select class="bg-transparent border-0 outline-none w-full font-code-sm text-code-sm text-on-surface focus:ring-0 p-0" id="select-jira">
+<option class="bg-surface-container-highest text-on-surface" value="PAY (Ödeme Sistemleri)">PAY (Ödeme Sistemleri)</option>
+<option class="bg-surface-container-highest text-on-surface" value="CORE (Çekirdek Servisler)">CORE (Çekirdek Servisler)</option>
+<option class="bg-surface-container-highest text-on-surface" value="WEB (Web Deneyimi)">WEB (Web Deneyimi)</option>
+<option class="bg-surface-container-highest text-on-surface" value="OPS (Operasyon &amp; Güvenlik)">OPS (Operasyon &amp; Güvenlik)</option>
+</select>
+</div>
+</div>
+<!-- State Transitions Dropdowns -->
+<div class="grid grid-cols-2 gap-space-sm">
+<div class="flex flex-col space-y-1">
+<label class="font-label-xs text-label-xs text-secondary uppercase tracking-wider" for="select-pass">ON_PASS Geçişi</label>
+<div class="bg-surface-container-lowest rounded-lg px-space-sm py-2 shadow-inner">
+<select class="bg-transparent border-0 outline-none w-full font-code-sm text-code-sm text-on-surface focus:ring-0 p-0" id="select-pass">
+<option class="bg-surface-container-highest text-on-surface" value="Ready for Staging">Ready for Staging</option>
+<option class="bg-surface-container-highest text-on-surface" value="QA Verification">QA Verification</option>
+<option class="bg-surface-container-highest text-on-surface" value="Done">Done</option>
+<option class="bg-surface-container-highest text-on-surface" value="In Progress">In Progress</option>
+</select>
+</div>
+</div>
+<div class="flex flex-col space-y-1">
+<label class="font-label-xs text-label-xs text-error uppercase tracking-wider" for="select-fail">ON_FAIL Geçişi</label>
+<div class="bg-surface-container-lowest rounded-lg px-space-sm py-2 shadow-inner">
+<select class="bg-transparent border-0 outline-none w-full font-code-sm text-code-sm text-on-surface focus:ring-0 p-0" id="select-fail">
+<option class="bg-surface-container-highest text-on-surface" value="Blocked / Security Review">Blocked / Security Review</option>
+<option class="bg-surface-container-highest text-on-surface" value="Changes Requested">Changes Requested</option>
+<option class="bg-surface-container-highest text-on-surface" value="In Progress">In Progress</option>
+<option class="bg-surface-container-highest text-on-surface" value="Backlog">Backlog</option>
+</select>
+</div>
+</div>
+</div>
+<!-- Form Toggles -->
+<div class="flex flex-col space-y-space-sm pt-space-xs">
+<label class="font-label-xs text-label-xs text-on-surface-variant uppercase tracking-wider">İşlem Bayrakları</label>
+<div class="flex items-center justify-between p-space-sm bg-surface-container-lowest rounded-lg">
+<span class="font-body-sm text-body-sm text-on-surface">auto_write (Yorum yaz)</span>
+<button aria-checked="true" class="w-9 h-5 flex items-center bg-secondary-container rounded-full p-0.5 cursor-pointer transition-colors" id="modal-toggle-autowrite" onclick="toggleSwitch(this)" role="switch" type="button">
+<div class="w-3.5 h-3.5 bg-on-secondary rounded-full transform translate-x-4 transition-transform duration-200"></div>
+</button>
+</div>
+<div class="flex items-center justify-between p-space-sm bg-surface-container-lowest rounded-lg">
+<span class="font-body-sm text-body-sm text-on-surface">require_approval (Onay şartı)</span>
+<button aria-checked="true" class="w-9 h-5 flex items-center bg-secondary-container rounded-full p-0.5 cursor-pointer transition-colors" id="modal-toggle-approval" onclick="toggleSwitch(this)" role="switch" type="button">
+<div class="w-3.5 h-3.5 bg-on-secondary rounded-full transform translate-x-4 transition-transform duration-200"></div>
+</button>
+</div>
+<div class="flex items-center justify-between p-space-sm bg-surface-container-lowest rounded-lg">
+<span class="font-body-sm text-body-sm text-on-surface">dry_run_default (Güvenli mod)</span>
+<button aria-checked="false" class="w-9 h-5 flex items-center bg-surface-bright rounded-full p-0.5 cursor-pointer transition-colors" id="modal-toggle-dryrun" onclick="toggleSwitch(this)" role="switch" type="button">
+<div class="w-3.5 h-3.5 bg-outline rounded-full transform translate-x-0 transition-transform duration-200"></div>
+</button>
+</div>
+</div>
+<!-- Modal Bottom Actions -->
+<div class="flex items-center justify-end gap-space-sm pt-space-sm">
+<button class="py-2 px-space-lg rounded-lg bg-surface-container hover:bg-surface-container-highest text-on-surface-variant font-body-md text-body-md transition-colors active:scale-95" onclick="closePolicyModal()" type="button">
+            Vazgeç
+          </button>
+<button class="py-2 px-space-lg rounded-lg bg-primary-container hover:bg-inverse-primary text-on-primary-container hover:text-surface font-title-sm text-title-sm font-semibold transition-all shadow-md active:scale-95" type="submit">
+            Değişiklikleri Kaydet
+          </button>
+</div>
+</form>
+</div>
+</div>
+</div>
+<script>
+  function toggleSwitch(btn) {
+    const isChecked = btn.getAttribute('aria-checked') === 'true';
+    const nextState = !isChecked;
+    btn.setAttribute('aria-checked', nextState ? 'true' : 'false');
+    const knob = btn.firstElementChild;
+
+    if (nextState) {
+      btn.className = btn.className.replace('bg-surface-bright', 'bg-secondary-container');
+      knob.className = knob.className.replace('bg-outline translate-x-0', 'bg-on-secondary translate-x-5');
+      if (knob.className.includes('w-3.5')) {
+        knob.className = knob.className.replace('translate-x-0', 'translate-x-4');
+      }
+    } else {
+      btn.className = btn.className.replace('bg-secondary-container', 'bg-surface-bright');
+      knob.className = knob.className.replace('bg-on-secondary translate-x-5', 'bg-outline translate-x-0');
+      if (knob.className.includes('w-3.5')) {
+        knob.className = knob.className.replace('translate-x-4', 'translate-x-0');
+      }
+    }
+  }
+
+  function showToast(message) {
+    const toast = document.getElementById('policy-toast');
+    const msg = document.getElementById('policy-toast-msg');
+    msg.textContent = message;
+    toast.classList.remove('opacity-0', 'pointer-events-none');
+    toast.classList.add('opacity-100');
+    setTimeout(() => {
+      toast.classList.remove('opacity-100');
+      toast.classList.add('opacity-0', 'pointer-events-none');
+    }, 2800);
+  }
+
+  function testPolicyRule(repo, jiraTicket) {
+    showToast(`${repo} kural testi ${jiraTicket} bileti ile doğrulandı (HTTP 200 OK)`);
+  }
+
+  function openPolicyModal(repo, jira, pass, fail, autoWrite, reqApproval, dryRun) {
+    const modal = document.getElementById('policy-modal');
+    document.getElementById('modal-title').textContent = `Politika Düzenle (${repo})`;
+    document.getElementById('input-repo').value = repo;
+    document.getElementById('select-jira').value = jira;
+    document.getElementById('select-pass').value = pass;
+    document.getElementById('select-fail').value = fail;
+
+    // Set switches
+    setSwitchState(document.getElementById('modal-toggle-autowrite'), autoWrite);
+    setSwitchState(document.getElementById('modal-toggle-approval'), reqApproval);
+    setSwitchState(document.getElementById('modal-toggle-dryrun'), dryRun);
+
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+      modal.classList.remove('opacity-0');
+      modal.classList.add('opacity-100');
+    }, 10);
+  }
+
+  function setSwitchState(btn, state) {
+    btn.setAttribute('aria-checked', state ? 'true' : 'false');
+    const knob = btn.firstElementChild;
+    if (state) {
+      btn.className = 'w-9 h-5 flex items-center bg-secondary-container rounded-full p-0.5 cursor-pointer transition-colors';
+      knob.className = 'w-3.5 h-3.5 bg-on-secondary rounded-full transform translate-x-4 transition-transform duration-200';
+    } else {
+      btn.className = 'w-9 h-5 flex items-center bg-surface-bright rounded-full p-0.5 cursor-pointer transition-colors';
+      knob.className = 'w-3.5 h-3.5 bg-outline rounded-full transform translate-x-0 transition-transform duration-200';
+    }
+  }
+
+  function closePolicyModal() {
+    const modal = document.getElementById('policy-modal');
+    modal.classList.remove('opacity-100');
+    modal.classList.add('opacity-0');
+    setTimeout(() => {
+      modal.classList.add('hidden');
+    }, 300);
+  }
+
+  function savePolicyChanges(e) {
+    e.preventDefault();
+    const repo = document.getElementById('input-repo').value;
+    closePolicyModal();
+    showToast(`${repo} politikası ve tetikleyicileri güncellendi.`);
+  }
+</script></main><nav class="fixed bottom-0 w-full lg:hidden z-50 pb-safe bg-surface/90 backdrop-blur-xl shadow-[0_-1px_12px_rgba(0,0,0,0.5)]" data-active-classes="text-primary font-semibold"><div class="flex justify-around items-center h-16 px-space-xs"><a class="flex flex-col items-center justify-center gap-0.5 min-w-[56px] h-12 text-on-surface-variant transition-colors hover:text-on-surface" data-path="calistirmalar" href="runs.html"><span class="material-symbols-outlined text-[20px]">play_arrow</span><span class="font-code-sm text-[11px] leading-tight">Çalıştırmalar</span></a><a aria-current="page" class="flex flex-col items-center justify-center gap-0.5 min-w-[56px] h-12 transition-colors text-primary font-semibold" data-path="politikalar" href="policies.html"><span class="material-symbols-outlined text-[20px]">gavel</span><span class="font-code-sm text-[11px] leading-tight">Politikalar</span></a><a class="flex flex-col items-center justify-center gap-0.5 min-w-[56px] h-12 text-on-surface-variant transition-colors hover:text-on-surface" data-path="denetim-izi" href="audit.html"><span class="material-symbols-outlined text-[20px]">receipt_long</span><span class="font-code-sm text-[11px] leading-tight">Denetim</span></a><a class="flex flex-col items-center justify-center gap-0.5 min-w-[56px] h-12 text-on-surface-variant transition-colors hover:text-on-surface" data-path="ayarlar" href="settings.html"><span class="material-symbols-outlined text-[20px]">settings</span><span class="font-code-sm text-[11px] leading-tight">Ayarlar</span></a></div></nav><script src="assets/web.js"></script>
+</body></html>

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="tr"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><meta content="mobile_tab" name="shell-type"/><title>DevOps Agentic Network</title><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{width:100vw;margin:0;padding:0;background-color:#0b1326;color:#dae2fd;}body{overscroll-behavior:none;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { colors: { "background": "#0b1326", "secondary-fixed": "#6ffbbe", "on-secondary": "#003824", "on-surface-variant": "#c7c4d7", "surface-bright": "#31394d", "surface-container-highest": "#2d3449", "on-tertiary-fixed": "#2a1700", "primary-fixed-dim": "#c0c1ff", "tertiary-fixed-dim": "#ffb95f", "surface-tint": "#c0c1ff", "outline": "#908fa0", "on-tertiary": "#472a00", "secondary-container": "#00a572", "on-secondary-fixed": "#002113", "on-secondary-container": "#00311f", "on-primary-fixed": "#07006c", "surface-variant": "#2d3449", "surface-container-lowest": "#060e20", "inverse-primary": "#494bd6", "tertiary-fixed": "#ffddb8", "on-tertiary-container": "#3e2400", "surface-container-high": "#222a3d", "tertiary": "#ffb95f", "on-error": "#690005", "primary-container": "#8083ff", "on-primary-container": "#0d0096", "on-background": "#dae2fd", "error-container": "#93000a", "inverse-on-surface": "#283044", "on-tertiary-fixed-variant": "#653e00", "primary": "#c0c1ff", "secondary": "#4edea3", "tertiary-container": "#ca8100", "secondary-fixed-dim": "#4edea3", "surface": "#0b1326", "on-error-container": "#ffdad6", "on-primary-fixed-variant": "#2f2ebe", "surface-container": "#171f33", "on-secondary-fixed-variant": "#005236", "outline-variant": "#464554", "surface-container-low": "#131b2e", "error": "#ffb4ab", "on-primary": "#1000a9", "primary-fixed": "#e1e0ff", "inverse-surface": "#dae2fd", "surface-dim": "#0b1326", "on-surface": "#dae2fd" }, borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, spacing: { "margin": "1rem", "space-xs": "0.25rem", "gutter": "1rem", "margin-desktop": "2rem", "space-lg": "1rem", "space-md": "0.75rem", "gutter-desktop": "1.5rem", "space-sm": "0.5rem", "space-xl": "1.5rem" }, fontFamily: { "code-md": ["JetBrains Mono"], "body-sm": ["Inter"], "title-sm": ["Inter"], "headline-xl": ["Inter"], "label-xs": ["JetBrains Mono"], "headline-md": ["Inter"], "headline-lg": ["Inter"], "code-sm": ["JetBrains Mono"], "body-md": ["Inter"] }, fontSize: { "code-md": ["13px", { "lineHeight": "18px", "letterSpacing": "-0.01em", "fontWeight": "500" }], "body-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0em", "fontWeight": "400" }], "title-sm": ["16px", { "lineHeight": "24px", "letterSpacing": "-0.005em", "fontWeight": "600" }], "headline-xl": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }], "label-xs": ["10px", { "lineHeight": "14px", "letterSpacing": "0.06em", "fontWeight": "600" }], "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }], "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "600" }], "code-sm": ["11px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }], "body-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "400" }] } } } };</script><link rel="stylesheet" href="assets/web.css" />
+</head><body data-page="audit" class="bg-surface font-body-md text-on-surface flex flex-col min-h-screen"><header class="fixed top-0 w-full z-50 bg-surface/90 backdrop-blur-xl pt-safe shadow-[0_1px_8px_rgba(0,0,0,0.4)]"><div class="h-16 px-gutter flex items-center justify-between gap-space-sm"><div class="flex items-center gap-space-sm min-w-0"><button aria-label="Menüyü Aç" class="w-11 h-11 flex items-center justify-center rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors" id="drawer-toggle-btn" onclick="document.getElementById('mobile-nav-drawer').classList.toggle('-translate-x-full');document.getElementById('drawer-backdrop').classList.toggle('hidden');"><span class="material-symbols-outlined">menu</span></button><img alt="DevOps Agentic Network Logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDPAqExe1KsgqIW1xPKcDqNtjh-xsB84m1ojcTE9osnQpJlVLAwAxQDYe0hQD-oG1mpRvPinSFyVRUwtDwZxHew-5Nq-W9Xv5kJVvDjcKado82BwfFqjOKfwSsQ_KIrboiJOh__I6EbFwdg-YdQhLKsDUTHHGveAYqNgKGzK-RDzC4bsn3vfkCJ9KTx7dlpJ3ycGTR5E69aVGGrPjIPPdGsHW8IcqFKI3eGk__W5jk"/><div class="flex flex-col min-w-0"><span class="font-title-sm text-title-sm text-on-surface truncate">DevOps Agentic</span><div class="flex items-center gap-space-xs"><span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-surface-container-high text-secondary font-code-sm text-code-sm leading-none"><span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span>PROD-EU-1</span></div></div></div><div class="flex items-center gap-space-sm"><div class="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded bg-surface-container text-on-surface-variant font-code-sm text-code-sm"><span class="material-symbols-outlined text-[16px] text-tertiary">science</span><span class="font-code-sm text-code-sm text-on-surface-variant">Dry-Run:</span><span class="text-secondary font-code-sm text-code-sm font-semibold">Aktif</span></div><div class="relative flex items-center"><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBMTqwaJ5oIzjZFG5uqiJ5oy8uXF635NTDd7Kz15iiZENyFsQ-UtAjTYDxWLN-7CwRblBy84hMgOH_nb3N0Y58bZpEIA2tMNMQpmhiEW5X4CPWmYkayOtUpdLS1I5VPuy_VAGyqXboGle5ny_fZkdM9ii8VG67gWzAG6lfN6so-hOwEhqjZhiqMYNT8ggJoXrtQsBFUy99caKMyNb92wXOcj8ub6tCzHt8b42kWoNs"/><span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-secondary ring-2 ring-surface"></span></div></div></div><div class="h-9 px-gutter bg-surface-container-low flex items-center justify-between"><div class="flex items-center gap-space-xs overflow-hidden"><span class="material-symbols-outlined text-[16px] text-primary">terminal</span><span class="font-code-sm text-code-sm text-primary uppercase tracking-wider truncate">Denetim Izi</span></div><button class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-code-sm text-code-sm active:bg-surface-container-highest" onclick="const s=this.querySelector('.dry-state');const a=s.innerText==='Aktif';s.innerText=a?'Pasif':'Aktif';s.className=a?'dry-state text-on-surface-variant font-code-sm text-code-sm font-semibold':'dry-state text-secondary font-code-sm text-code-sm font-semibold';"><span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span><span class="text-on-surface-variant">Dry-Run:</span><span class="dry-state text-secondary font-code-sm text-code-sm font-semibold">Aktif</span></button></div></header><div class="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm hidden transition-opacity" id="drawer-backdrop" onclick="document.getElementById('mobile-nav-drawer').classList.add('-translate-x-full');this.classList.add('hidden');"></div><aside class="fixed top-0 bottom-0 left-0 z-50 w-72 bg-surface-container-low backdrop-blur-xl shadow-2xl transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col pt-safe pb-safe" id="mobile-nav-drawer" data-web-sidebar><div class="h-16 px-gutter flex items-center justify-between bg-surface-container"><div class="flex items-center gap-space-sm"><img alt="DevOps Agentic Network Logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDPAqExe1KsgqIW1xPKcDqNtjh-xsB84m1ojcTE9osnQpJlVLAwAxQDYe0hQD-oG1mpRvPinSFyVRUwtDwZxHew-5Nq-W9Xv5kJVvDjcKado82BwfFqjOKfwSsQ_KIrboiJOh__I6EbFwdg-YdQhLKsDUTHHGveAYqNgKGzK-RDzC4bsn3vfkCJ9KTx7dlpJ3ycGTR5E69aVGGrPjIPPdGsHW8IcqFKI3eGk__W5jk"/><span class="font-title-sm text-title-sm text-on-surface">DevOps Ajanı</span></div><button aria-label="Menüyü Kapat" class="w-11 h-11 flex items-center justify-center rounded-lg text-on-surface-variant hover:text-on-surface" onclick="document.getElementById('mobile-nav-drawer').classList.add('-translate-x-full');document.getElementById('drawer-backdrop').classList.add('hidden');"><span class="material-symbols-outlined">close</span></button></div><div class="p-gutter bg-surface-container-lowest flex items-center gap-space-sm"><img alt="Profile" class="w-10 h-10 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBMTqwaJ5oIzjZFG5uqiJ5oy8uXF635NTDd7Kz15iiZENyFsQ-UtAjTYDxWLN-7CwRblBy84hMgOH_nb3N0Y58bZpEIA2tMNMQpmhiEW5X4CPWmYkayOtUpdLS1I5VPuy_VAGyqXboGle5ny_fZkdM9ii8VG67gWzAG6lfN6so-hOwEhqjZhiqMYNT8ggJoXrtQsBFUy99caKMyNb92wXOcj8ub6tCzHt8b42kWoNs"/><div class="flex flex-col min-w-0"><span class="font-title-sm text-title-sm text-on-surface truncate">Baş Sistem Mimarı</span><div class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-secondary"></span><span class="font-code-sm text-code-sm text-secondary">Tech Lead · Online</span></div></div></div><nav class="flex-1 overflow-y-auto p-space-sm space-y-1" data-active-classes="bg-surface-container-highest text-primary font-semibold"><a class="flex items-center gap-space-md px-gutter py-space-md rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" data-path="calistirmalar" href="runs.html"><span class="material-symbols-outlined">play_arrow</span><span class="font-body-md text-body-md">Çalıştırmalar</span></a><a class="flex items-center gap-space-md px-gutter py-space-md rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" data-path="calistirma-detayi" href="run-detail.html"><span class="material-symbols-outlined">account_tree</span><span class="font-body-md text-body-md">Çalıştırma Detayı</span></a><a class="flex items-center gap-space-md px-gutter py-space-md rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" data-path="politikalar" href="policies.html"><span class="material-symbols-outlined">gavel</span><span class="font-body-md text-body-md">Politikalar</span></a><a aria-current="page" class="flex items-center gap-space-md px-gutter py-space-md rounded-lg transition-colors bg-surface-container-highest text-primary font-semibold" data-path="denetim-izi" href="audit.html"><span class="material-symbols-outlined">receipt_long</span><span class="font-body-md text-body-md">Denetim İzi</span></a><a class="flex items-center gap-space-md px-gutter py-space-md rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" data-path="ayarlar" href="settings.html"><span class="material-symbols-outlined">settings</span><span class="font-body-md text-body-md">Ayarlar</span></a></nav><div class="p-gutter bg-surface-container-lowest flex items-center justify-between"><span class="font-code-sm text-code-sm text-outline">PROD-EU-1 v2.4.0</span><span class="inline-flex items-center gap-1 font-code-sm text-code-sm text-secondary"><span class="w-1.5 h-1.5 rounded-full bg-secondary animate-ping"></span>Aktif</span></div></aside><main class="flex flex-col relative w-full pt-[100px] pb-24 bg-surface min-h-screen"><div class="flex flex-col w-full px-gutter space-y-space-lg">
+<!-- Header Info & WORM Security Badge -->
+<section class="flex flex-col space-y-space-md pt-space-xs">
+<div class="flex items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-xs">
+<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-secondary-container text-on-secondary-container">
+<span class="material-symbols-outlined text-[16px]">verified_user</span>
+</span>
+<span class="font-code-sm text-code-sm uppercase tracking-wider text-secondary">WORM Uyumlu &amp; Kriptografik İmza</span>
+</div>
+<span class="font-label-xs text-label-xs px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant font-code-md">
+        SHA-256 LEDGER
+      </span>
+</div>
+<div class="space-y-space-xs">
+<h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">
+        Değiştirilemez Denetim İzi
+      </h1>
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+        Yapay zeka ajanlarının ve yetkili mühendislerin tüm Jira ve Git aksiyon kayıtları. Güvenlik ve mevzuat gereği silme veya düzenleme işlemi yapılamaz.
+      </p>
+</div>
+<!-- Security Assurance Banner -->
+<div class="p-space-md rounded-xl bg-surface-container-low shadow-sm flex items-start gap-space-md">
+<div class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center shrink-0 text-primary">
+<span class="material-symbols-outlined text-[20px]">lock</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-title-sm text-title-sm text-on-surface truncate">Kayıtlar Şifreli ve İmzalıdır</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">
+          SEC Rule 17a-4 standartlarında Write-Once-Read-Many (WORM) depolama alanına akış anında mühürlenmektedir.
+        </span>
+</div>
+</div>
+</section>
+<!-- Filter Controls -->
+<section class="p-space-lg rounded-xl bg-surface-container space-y-space-md shadow-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs text-on-surface">
+<span class="material-symbols-outlined text-[18px] text-primary">tune</span>
+<span class="font-title-sm text-title-sm">Kayıtları Filtrele</span>
+</div>
+<button class="font-code-sm text-code-sm text-on-surface-variant hover:text-primary transition-colors flex items-center gap-0.5" id="reset-filter-btn">
+<span class="material-symbols-outlined text-[14px]">refresh</span> Sıfırla
+      </button>
+</div>
+<!-- Ticket Search Input -->
+<div class="relative flex items-center">
+<span class="absolute left-3 font-code-md text-code-md text-outline">$</span>
+<input class="w-full pl-8 pr-9 py-2 rounded-lg bg-surface-container-lowest text-on-surface font-code-md text-code-md placeholder:text-outline outline-none focus:bg-surface-container-highest transition-colors" id="ticket-search" placeholder="Bilet ID ile Filtrele (Örn: PAY-1042, SEC-409)" type="text"/>
+<span class="material-symbols-outlined absolute right-3 text-outline text-[18px]">search</span>
+</div>
+<!-- Multi Dropdowns (Stacked for Mobile) -->
+<div class="grid grid-cols-1 gap-space-sm sm:grid-cols-2">
+<!-- Action Type -->
+<div class="flex flex-col space-y-1">
+<label class="font-code-sm text-code-sm text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">bolt</span> Aksiyon Tipi
+        </label>
+<div class="relative">
+<select class="w-full py-2 px-3 pr-8 rounded-lg bg-surface-container-lowest text-on-surface font-body-md text-body-md appearance-none outline-none focus:bg-surface-container-highest transition-colors" id="action-filter">
+<option value="ALL">Tüm Aksiyonlar</option>
+<option value="JIRA_COMMENT">Jira Yorumu</option>
+<option value="STATUS_TRANSITION">Durum Geçişi</option>
+<option value="APPROVE">Onay</option>
+<option value="BLOCK">Red / Engelleme</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-2.5 pointer-events-none text-outline text-[18px]">expand_more</span>
+</div>
+</div>
+<!-- Actor Select -->
+<div class="flex flex-col space-y-1">
+<label class="font-code-sm text-code-sm text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">smart_toy</span> Aktör Kaynağı
+        </label>
+<div class="relative">
+<select class="w-full py-2 px-3 pr-8 rounded-lg bg-surface-container-lowest text-on-surface font-body-md text-body-md appearance-none outline-none focus:bg-surface-container-highest transition-colors" id="actor-filter">
+<option value="ALL">Tümü</option>
+<option value="LLAMA">AI Agent (Llama 3.1 70B)</option>
+<option value="CLAUDE">AI Agent (Claude-3.5)</option>
+<option value="MISTRAL">AI Agent (Mistral Large)</option>
+<option value="DENIZ">deniz.yilmaz (Tech Lead)</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-2.5 pointer-events-none text-outline text-[18px]">expand_more</span>
+</div>
+</div>
+</div>
+<!-- Immutability Notice Info Bar -->
+<div class="px-3 py-2 rounded-lg bg-surface-container-lowest flex items-center gap-space-sm text-outline">
+<span class="material-symbols-outlined text-[16px] text-tertiary">info</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant flex-1">
+        Kayıt bütünlüğü kilitlidir: UI üzerinde silme veya düzenleme butonu bulunmaz.
+      </span>
+<span class="material-symbols-outlined text-[16px] text-outline">block</span>
+</div>
+</section>
+<!-- Audit Activity Stream -->
+<section class="space-y-space-md">
+<div class="flex items-center justify-between px-space-xs">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary text-[18px]">receipt_long</span>
+<h2 class="font-title-sm text-title-sm text-on-surface">Denetim Günlüğü</h2>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant">4 / 4 Kayıt Aktif</span>
+</div>
+<div class="space-y-space-sm" id="audit-log-stream">
+<!-- Row 1: Llama Status Transition -->
+<article class="p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-all flex flex-col space-y-space-sm shadow-sm" data-action="STATUS_TRANSITION" data-actor="LLAMA" data-ticket="PAY-1042">
+<div class="flex items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-xs min-w-0">
+<span class="w-2 h-2 rounded-full bg-secondary shrink-0"></span>
+<span class="font-code-sm text-code-sm text-on-surface-variant truncate">Bugün 14:32:10</span>
+</div>
+<span class="font-code-sm text-code-sm text-primary px-2 py-0.5 rounded bg-surface-container-highest shrink-0">
+            #run-84f9a2
+          </span>
+</div>
+<div class="flex items-center justify-between gap-space-sm pt-0.5">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-7 h-7 rounded-full bg-surface-container-highest flex items-center justify-center text-primary-fixed-dim shrink-0">
+<span class="material-symbols-outlined text-[16px]">smart_toy</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-title-sm text-title-sm text-on-surface truncate">AI Agent (Llama 3.1 70B)</span>
+<span class="font-label-xs text-label-xs text-outline tracking-wider">AUTONOMOUS ORCHESTRATOR</span>
+</div>
+</div>
+<span class="font-code-md text-code-md px-2 py-0.5 rounded bg-primary-container/20 text-primary-fixed-dim font-semibold shrink-0">
+            PAY-1042
+          </span>
+</div>
+<div class="p-space-sm rounded-lg bg-surface-container-lowest space-y-1">
+<div class="flex items-center justify-between">
+<span class="font-code-sm text-code-sm text-on-surface-variant">Aksiyon:</span>
+<span class="font-code-sm text-code-sm text-primary font-semibold">JIRA_TRANSITION_STATUS</span>
+</div>
+<div class="flex items-center gap-space-xs text-on-surface font-body-sm text-body-sm">
+<span class="px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-code-sm text-code-sm">In Review</span>
+<span class="material-symbols-outlined text-[14px] text-outline">arrow_forward</span>
+<span class="px-1.5 py-0.5 rounded bg-secondary-container/20 text-secondary font-code-sm text-code-sm font-semibold">Ready for QA</span>
+</div>
+</div>
+<div class="flex items-center justify-between pt-1">
+<div class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span class="font-code-sm text-code-sm text-secondary font-semibold">BAŞARILI (HTTP 200)</span>
+</div>
+<div class="flex items-center gap-1 text-outline font-code-sm text-code-sm">
+<span class="material-symbols-outlined text-[14px]">lock</span>
+<span>İmzalı</span>
+</div>
+</div>
+</article>
+<!-- Row 2: Llama Release Notes -->
+<article class="p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-all flex flex-col space-y-space-sm shadow-sm" data-action="JIRA_COMMENT" data-actor="LLAMA" data-ticket="PAY-1042">
+<div class="flex items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-xs min-w-0">
+<span class="w-2 h-2 rounded-full bg-secondary shrink-0"></span>
+<span class="font-code-sm text-code-sm text-on-surface-variant truncate">Bugün 14:31:55</span>
+</div>
+<span class="font-code-sm text-code-sm text-primary px-2 py-0.5 rounded bg-surface-container-highest shrink-0">
+            #run-84f9a2
+          </span>
+</div>
+<div class="flex items-center justify-between gap-space-sm pt-0.5">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-7 h-7 rounded-full bg-surface-container-highest flex items-center justify-center text-primary-fixed-dim shrink-0">
+<span class="material-symbols-outlined text-[16px]">smart_toy</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-title-sm text-title-sm text-on-surface truncate">AI Agent (Llama 3.1 70B)</span>
+<span class="font-label-xs text-label-xs text-outline tracking-wider">AUTONOMOUS ORCHESTRATOR</span>
+</div>
+</div>
+<span class="font-code-md text-code-md px-2 py-0.5 rounded bg-primary-container/20 text-primary-fixed-dim font-semibold shrink-0">
+            PAY-1042
+          </span>
+</div>
+<div class="p-space-sm rounded-lg bg-surface-container-lowest space-y-1">
+<div class="flex items-center justify-between">
+<span class="font-code-sm text-code-sm text-on-surface-variant">Aksiyon:</span>
+<span class="font-code-sm text-code-sm text-primary font-semibold">POST_RELEASE_NOTES_COMMENT</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface leading-tight">
+            Diff özeti ve güvenlik inceleme notu eklendi. SHA: <code class="font-code-sm text-code-sm text-secondary-fixed">e7b99c0</code>
+</p>
+</div>
+<div class="flex items-center justify-between pt-1">
+<div class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span class="font-code-sm text-code-sm text-secondary font-semibold">BAŞARILI (Comment ID: #8921)</span>
+</div>
+<div class="flex items-center gap-1 text-outline font-code-sm text-code-sm">
+<span class="material-symbols-outlined text-[14px]">lock</span>
+<span>İmzalı</span>
+</div>
+</div>
+</article>
+<!-- Row 3: Human Manual Override -->
+<article class="p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-all flex flex-col space-y-space-sm shadow-sm" data-action="APPROVE" data-actor="DENIZ" data-ticket="SEC-409">
+<div class="flex items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-xs min-w-0">
+<span class="w-2 h-2 rounded-full bg-secondary shrink-0"></span>
+<span class="font-code-sm text-code-sm text-on-surface-variant truncate">Dün 18:20:04</span>
+</div>
+<span class="font-code-sm text-code-sm text-primary px-2 py-0.5 rounded bg-surface-container-highest shrink-0">
+            #run-77c1d0
+          </span>
+</div>
+<div class="flex items-center justify-between gap-space-sm pt-0.5">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-7 h-7 rounded-full bg-secondary-container/30 flex items-center justify-center text-secondary shrink-0">
+<span class="material-symbols-outlined text-[16px]">person</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-title-sm text-title-sm text-on-surface truncate">deniz.yilmaz (Tech Lead)</span>
+<span class="font-label-xs text-label-xs text-secondary-fixed-dim tracking-wider">HUMAN SUPERVISOR</span>
+</div>
+</div>
+<span class="font-code-md text-code-md px-2 py-0.5 rounded bg-primary-container/20 text-primary-fixed-dim font-semibold shrink-0">
+            SEC-409
+          </span>
+</div>
+<div class="p-space-sm rounded-lg bg-surface-container-lowest space-y-1">
+<div class="flex items-center justify-between">
+<span class="font-code-sm text-code-sm text-on-surface-variant">Aksiyon:</span>
+<span class="font-code-sm text-code-sm text-tertiary font-semibold">MANUAL_OVERRIDE_APPROVE</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface leading-tight">
+            Engellenen çalıştırma yetkili mühendis imzasıyla manuel olarak onaylandı.
+          </p>
+</div>
+<div class="flex items-center justify-between pt-1">
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-secondary-container/20">
+<span class="material-symbols-outlined text-[14px] text-secondary">verified</span>
+<span class="font-code-sm text-code-sm text-secondary font-semibold">ONAYLANDI</span>
+</div>
+<div class="flex items-center gap-1 text-outline font-code-sm text-code-sm">
+<span class="material-symbols-outlined text-[14px]">vpn_key</span>
+<span>2FA Auth</span>
+</div>
+</div>
+</article>
+<!-- Row 4: Mistral Policy Enforcement Block -->
+<article class="p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-all flex flex-col space-y-space-sm shadow-sm" data-action="BLOCK" data-actor="MISTRAL" data-ticket="PAY-1088">
+<div class="flex items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-xs min-w-0">
+<span class="w-2 h-2 rounded-full bg-error shrink-0"></span>
+<span class="font-code-sm text-code-sm text-on-surface-variant truncate">Dün 16:15:22</span>
+</div>
+<span class="font-code-sm text-code-sm text-primary px-2 py-0.5 rounded bg-surface-container-highest shrink-0">
+            #run-63b8e4
+          </span>
+</div>
+<div class="flex items-center justify-between gap-space-sm pt-0.5">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-7 h-7 rounded-full bg-surface-container-highest flex items-center justify-center text-primary-fixed-dim shrink-0">
+<span class="material-symbols-outlined text-[16px]">smart_toy</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-title-sm text-title-sm text-on-surface truncate">AI Agent (Mistral Large)</span>
+<span class="font-label-xs text-label-xs text-outline tracking-wider">POLICY ENFORCEMENT</span>
+</div>
+</div>
+<span class="font-code-md text-code-md px-2 py-0.5 rounded bg-primary-container/20 text-primary-fixed-dim font-semibold shrink-0">
+            PAY-1088
+          </span>
+</div>
+<div class="p-space-sm rounded-lg bg-surface-container-lowest space-y-1">
+<div class="flex items-center justify-between">
+<span class="font-code-sm text-code-sm text-on-surface-variant">Aksiyon:</span>
+<span class="font-code-sm text-code-sm text-error font-semibold">POLICY_ENFORCEMENT_BLOCK</span>
+</div>
+<p class="font-body-sm text-body-sm text-error leading-tight">
+            Kural ihlali: Eksik birim test kapsamı (%68 &lt; %80 eşik sınırı). Dağıtım durduruldu.
+          </p>
+</div>
+<div class="flex items-center justify-between pt-1">
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-error-container/30">
+<span class="material-symbols-outlined text-[14px] text-error">gpp_bad</span>
+<span class="font-code-sm text-code-sm text-error font-semibold">ENGELLENDİ</span>
+</div>
+<div class="flex items-center gap-1 text-outline font-code-sm text-code-sm">
+<span class="material-symbols-outlined text-[14px]">lock</span>
+<span>Mühürlü</span>
+</div>
+</div>
+</article>
+</div>
+<!-- Empty State Container (Hidden initially) -->
+<div class="hidden p-space-xl rounded-xl bg-surface-container text-center space-y-space-sm" id="audit-empty-state">
+<div class="w-12 h-12 mx-auto rounded-full bg-surface-container-highest flex items-center justify-center text-outline">
+<span class="material-symbols-outlined text-[24px]">search_off</span>
+</div>
+<h3 class="font-title-sm text-title-sm text-on-surface">Eşleşen Denetim İzi Bulunamadı</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+        Girdiğiniz bilet kodu veya seçili filtrelere uygun kayıt yer almıyor. Kriterleri güncelleyiniz.
+      </p>
+</div>
+</section>
+<!-- Export Actions Footer Component -->
+<section class="p-space-md rounded-xl bg-surface-container-high space-y-space-sm shadow-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[18px] text-primary">download</span>
+<span class="font-title-sm text-title-sm text-on-surface">Rapor Dışa Aktarımı</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant">HMAC-SHA256 Doğrulamalı</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+      Denetçiler ve uyumluluk kontrolleri için dijital imzalı formatta indirin.
+    </p>
+<div class="grid grid-cols-2 gap-space-sm pt-space-xs">
+<button class="py-2.5 px-space-md rounded-lg bg-surface-container-lowest hover:bg-surface-container-highest text-on-surface font-title-sm text-body-md flex items-center justify-center gap-1.5 transition-colors active:scale-[0.98]" id="export-csv-btn">
+<span class="material-symbols-outlined text-[18px] text-secondary">table_chart</span>
+<span>.CSV İndir</span>
+</button>
+<button class="py-2.5 px-space-md rounded-lg bg-primary hover:bg-primary-container text-on-primary font-title-sm text-body-md flex items-center justify-center gap-1.5 transition-colors active:scale-[0.98]" id="export-json-btn">
+<span class="material-symbols-outlined text-[18px]">data_object</span>
+<span>.JSON İndir</span>
+</button>
+</div>
+<!-- Export Notification Toast -->
+<div class="hidden py-1.5 px-3 rounded bg-secondary-container text-on-secondary-container font-code-sm text-code-sm flex items-center justify-between" id="export-toast">
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+<span>İmzalı denetim arşivi hazırlandı ve indirildi.</span>
+</span>
+<span class="material-symbols-outlined text-[14px] cursor-pointer" onclick="document.getElementById('export-toast').classList.add('hidden')">close</span>
+</div>
+</section>
+</div>
+<script>
+  (function () {
+    const searchInput = document.getElementById('ticket-search');
+    const actionSelect = document.getElementById('action-filter');
+    const actorSelect = document.getElementById('actor-filter');
+    const resetBtn = document.getElementById('reset-filter-btn');
+    const stream = document.getElementById('audit-log-stream');
+    const emptyState = document.getElementById('audit-empty-state');
+    const exportCsvBtn = document.getElementById('export-csv-btn');
+    const exportJsonBtn = document.getElementById('export-json-btn');
+    const exportToast = document.getElementById('export-toast');
+
+    function applyFilter() {
+      const query = (searchInput.value || '').trim().toUpperCase();
+      const action = actionSelect.value;
+      const actor = actorSelect.value;
+      const cards = stream.querySelectorAll('article');
+      let visibleCount = 0;
+
+      cards.forEach((card) => {
+        const cTicket = (card.getAttribute('data-ticket') || '').toUpperCase();
+        const cAction = card.getAttribute('data-action') || '';
+        const cActor = card.getAttribute('data-actor') || '';
+
+        const matchQuery = !query || cTicket.includes(query);
+        const matchAction = action === 'ALL' || cAction === action;
+        const matchActor = actor === 'ALL' || cActor === actor;
+
+        if (matchQuery && matchAction && matchActor) {
+          card.classList.remove('hidden');
+          visibleCount++;
+        } else {
+          card.classList.add('hidden');
+        }
+      });
+
+      if (visibleCount === 0) {
+        emptyState.classList.remove('hidden');
+      } else {
+        emptyState.classList.add('hidden');
+      }
+    }
+
+    searchInput.addEventListener('input', applyFilter);
+    actionSelect.addEventListener('change', applyFilter);
+    actorSelect.addEventListener('change', applyFilter);
+
+    resetBtn.addEventListener('click', () => {
+      searchInput.value = '';
+      actionSelect.value = 'ALL';
+      actorSelect.value = 'ALL';
+      applyFilter();
+    });
+
+    function showExportToast(format) {
+      exportToast.classList.remove('hidden');
+      setTimeout(() => {
+        exportToast.classList.add('hidden');
+      }, 4000);
+    }
+
+    exportCsvBtn.addEventListener('click', () => showExportToast('CSV'));
+    exportJsonBtn.addEventListener('click', () => showExportToast('JSON'));
+  })();
+</script></main><nav class="fixed bottom-0 w-full lg:hidden z-50 pb-safe bg-surface/90 backdrop-blur-xl shadow-[0_-1px_12px_rgba(0,0,0,0.5)]" data-active-classes="text-primary font-semibold"><div class="flex justify-around items-center h-16 px-space-xs"><a class="flex flex-col items-center justify-center gap-0.5 min-w-[56px] h-12 text-on-surface-variant transition-colors hover:text-on-surface" data-path="calistirmalar" href="runs.html"><span class="material-symbols-outlined text-[20px]">play_arrow</span><span class="font-code-sm text-[11px] leading-tight">Çalıştırmalar</span></a><a class="flex flex-col items-center justify-center gap-0.5 min-w-[56px] h-12 text-on-surface-variant transition-colors hover:text-on-surface" data-path="politikalar" href="policies.html"><span class="material-symbols-outlined text-[20px]">gavel</span><span class="font-code-sm text-[11px] leading-tight">Politikalar</span></a><a aria-current="page" class="flex flex-col items-center justify-center gap-0.5 min-w-[56px] h-12 transition-colors text-primary font-semibold" data-path="denetim-izi" href="audit.html"><span class="material-symbols-outlined text-[20px]">receipt_long</span><span class="font-code-sm text-[11px] leading-tight">Denetim</span></a><a class="flex flex-col items-center justify-center gap-0.5 min-w-[56px] h-12 text-on-surface-variant transition-colors hover:text-on-surface" data-path="ayarlar" href="settings.html"><span class="material-symbols-outlined text-[20px]">settings</span><span class="font-code-sm text-[11px] leading-tight">Ayarlar</span></a></div></nav><script src="assets/web.js"></script>
+</body></html>
