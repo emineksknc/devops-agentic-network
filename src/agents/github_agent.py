@@ -32,7 +32,8 @@ class GitHubAgent(BaseAgent):
             "User-Agent": "DevOps-Agentic-Network"
         }
         if self.token and self.token != "mock_github_token":
-            headers["Authorization"] = f"token {self.token}"
+            # Bearer: classic (ghp_) + fine-grained (github_pat_) ikisiyle de gecerli
+            headers["Authorization"] = f"Bearer {self.token}"
         return headers
 
     async def fetch_commits(self, repo_owner: str, repo_name: str, count: int = 5) -> List[Dict[str, Any]]:
