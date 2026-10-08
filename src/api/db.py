@@ -87,6 +87,11 @@ def init_db() -> None:
                 enabled INTEGER NOT NULL DEFAULT 1,
                 system_prompt TEXT NOT NULL DEFAULT ''
             );
+            -- Global anahtar-deger ayarlar (redaksiyon vb.)
+            CREATE TABLE IF NOT EXISTS app_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL DEFAULT ''
+            );
             CREATE INDEX IF NOT EXISTS idx_units_run ON commit_units(run_id);
             CREATE INDEX IF NOT EXISTS idx_units_author ON commit_units(author);
             CREATE INDEX IF NOT EXISTS idx_actions_run ON jira_actions(run_id);
@@ -106,7 +111,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
     for table, wanted in {
         "runs": ["github_conn_id", "jira_conn_id", "llm_conn_id"],
         "policies": ["github_conn_id", "jira_conn_id"],
-        "connections": ["provider", "model"],
+        "connections": ["provider", "model", "temperature", "max_tokens"],
     }.items():
         have = cols(table)
         for col in wanted:

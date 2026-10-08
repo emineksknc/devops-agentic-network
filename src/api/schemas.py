@@ -90,6 +90,8 @@ class ConnectionIn(BaseModel):
     project_key: str = ""
     provider: str = ""
     model: str = ""
+    temperature: float = 0.3
+    max_tokens: int = 2048
     is_default: bool = False
 
 

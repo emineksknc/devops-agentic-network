@@ -1,88 +1,173 @@
-/* Ayarlar: /api/connections CRUD (github/jira/llm). Token maskeli gelir. */
+/* Ayarlar: sablon tasarim aynen korunur, ici canli API'ye baglanir.
+   Kartlar varsayilan baglantilari duzenler (github-default, jira-default, llm-default). */
 (function () {
-  const main = document.querySelector("body > main > div");
-  if (!main || !window.DAN) return;
-  const { api, toast, esc, openModal, closeModal, field, input, formValues, primaryBtn } = window.DAN;
-  const cs = 'style="background:#1e293b;border:1px solid #334155"';
-  const KINDS = [["github", "GitHub"], ["jira", "Jira"], ["llm", "LLM"]];
+  if (!window.DAN) return;
+  const { api, esc } = window.DAN;
+  const $ = (s) => document.querySelector(s);
+  const tToast = (m) => { if (window.triggerToast) window.triggerToast(m); };
+
+  let GH = null, JIRA = null, LLM = null;
+
+  function byKind(conns, kind, id) {
+    return conns.find((c) => c.id === id) || conns.find((c) => c.kind === kind && c.is_default) || conns.find((c) => c.kind === kind);
+  }
 
   async function load() {
     let conns = [];
-    try { conns = await api.get("/api/connections"); } catch (e) { toast("Yüklenemedi: " + e.message); return; }
-    main.innerHTML = '<div class="flex items-center justify-between"><h1 class="text-xl font-bold" style="color:#f8fafc">Bağlantılar</h1>'
-      + '<button id="c-new" class="px-4 py-2 rounded-md text-sm font-semibold" style="background:#6366f1;color:#fff">+ Yeni Bağlantı</button></div>'
-      + KINDS.map(([k, label]) => {
-        const items = conns.filter((c) => c.kind === k);
-        return '<div><h2 class="text-sm font-semibold mb-2" style="color:#c7c4d7">' + label + "</h2>"
-          + '<div class="grid gap-3 xl:grid-cols-2">' + (items.map(connCard).join("") || emptyCard()) + "</div></div>";
-      }).join("");
-    document.getElementById("c-new").onclick = () => editModal({ kind: "github" });
-    main.querySelectorAll("[data-edit]").forEach((b) => (b.onclick = () => {
-      const c = conns.find((x) => x.id === b.dataset.edit); if (c) editModal(c);
-    }));
-    main.querySelectorAll("[data-del]").forEach((b) => (b.onclick = async () => {
-      if (!confirm("Bağlantı silinsin mi?")) return;
-      try { await api.del("/api/connections/" + encodeURIComponent(b.dataset.del)); load(); }
-      catch (e) { toast("Silinemedi: " + e.message); }
-    }));
-  }
-  function emptyCard() { return '<div class="rounded-xl p-4 text-xs" ' + cs + ' style="color:#94a3b8">Kayıt yok.</div>'; }
-  function connCard(c) {
-    const detail = c.kind === "github" ? esc(c.base_url) + " · " + esc(c.owner)
-      : c.kind === "jira" ? esc(c.base_url) + " · " + esc(c.project_key)
-      : esc(c.provider || "ollama") + " · " + esc(c.model);
-    return '<div class="rounded-xl p-4 space-y-1" ' + cs + '>'
-      + '<div class="flex items-center justify-between"><b class="text-sm" style="color:#f8fafc">' + esc(c.name) + "</b>"
-      + (c.is_default ? '<span class="text-xs" style="color:#10b981">varsayılan</span>' : "") + "</div>"
-      + '<div class="text-xs font-mono" style="color:#94a3b8">' + esc(c.id) + "</div>"
-      + '<div class="text-xs" style="color:#94a3b8">' + detail + "</div>"
-      + '<div class="flex gap-3 pt-1"><button data-edit="' + esc(c.id) + '" class="text-xs" style="color:#818cf8">Düzenle</button>'
-      + '<button data-del="' + esc(c.id) + '" class="text-xs" style="color:#ef4444">Sil</button></div></div>';
-  }
-  function editModal(c) {
-    const kindSel = '<select name="kind" class="w-full px-3 py-2 rounded-md text-sm" style="background:#0f172a;border:1px solid #334155;color:#f8fafc">'
-      + KINDS.map(([k, l]) => '<option value="' + k + '"' + (c.kind === k ? " selected" : "") + ">" + l + "</option>").join("") + "</select><div class='mb-3'></div>";
-    const m = openModal("<h3 class='text-base font-semibold mb-3' style='color:#f8fafc'>Bağlantı</h3>"
-      + field("Ad", input("name", c.name || ""))
-      + field("Tür", kindSel)
-      + field("Base URL", input("base_url", c.base_url || "", "https://..."))
-      + field("Owner (github)", input("owner", c.owner || ""))
-      + field("E-posta (jira)", input("email", c.email || ""))
-      + field("Token (boş = değişmez)", '<input type="password" name="token" value="" placeholder="***" class="w-full px-3 py-2 rounded-md text-sm" style="background:#0f172a;border:1px solid #334155;color:#f8fafc" /><div class="mb-3"></div>')
-      + field("Proje anahtarı (jira)", input("project_key", c.project_key || "", "SCRUM"))
-      + field("Provider (llm)", '<select name="provider" class="w-full px-3 py-2 rounded-md text-sm" style="background:#0f172a;border:1px solid #334155;color:#f8fafc">'
-        + ["ollama", "openai", "anthropic"].map((p) => '<option value="' + p + '"' + (c.provider === p ? " selected" : "") + ">" + p + "</option>").join("") + "</select><div class='mb-3'></div>")
-      + field("Model (llm)", input("model", c.model || "", "llama3.1 / gpt-4o-mini").replace('class="w-full', 'list="m-models" class="w-full')
-        + '<datalist id="m-models"></datalist><div id="m-hint" class="text-xs mt-1" style="color:#64748b">Kurulu modeller yükleniyor…</div><div class=\'mb-3\'></div>')
-      + '<label class="text-xs flex items-center gap-2 mb-4" style="color:#94a3b8"><input type="checkbox" name="is_default" ' + (c.is_default ? "checked" : "") + " /> Varsayılan yap</label>"
-      + '<div class="flex justify-end">' + primaryBtn("Kaydet") + "</div>");
-    const dl = m.querySelector("#m-models");
-    const hint = m.querySelector("#m-hint");
-    const provSel = m.querySelector('select[name="provider"]');
-    async function fillModels() {
-      const kindSel = m.querySelector('select[name="kind"]');
-      if (hint) hint.style.display = (kindSel && kindSel.value === "llm") ? "" : "none";
-      if (!kindSel || kindSel.value !== "llm") return;
-      const prov = provSel ? provSel.value : "ollama";
-      const q = c.id ? "?conn_id=" + encodeURIComponent(c.id) : "?provider=" + encodeURIComponent(prov);
-      try {
-        const models = await api.get("/api/llm/models" + q);
-        dl.innerHTML = models.map((x) => '<option value="' + esc(x.name) + '">').join("");
-        if (hint) hint.textContent = models.length ? models.length + " model bulundu (" + (models[0].source || "") + ")" : "Model bulunamadı";
-      } catch (e) { if (hint) hint.textContent = "Liste alınamadı: " + e.message; }
+    try { conns = await api.get("/api/connections"); }
+    catch (e) { tToast("Bağlantılar yüklenemedi: " + e.message); return; }
+    GH = byKind(conns, "github"); JIRA = byKind(conns, "jira"); LLM = byKind(conns, "llm");
+
+    setVal("[data-bind='gh-org']", GH ? GH.owner : "");
+    setVal("#github-token", "");
+    const gt = $("#github-token"); if (gt) gt.placeholder = GH && GH.token === "***masked***" ? "kayıtlı (değiştirmek için yaz)" : "";
+    const wh = $("#webhook-token");
+    if (wh) { wh.value = ""; wh.disabled = true; wh.placeholder = "yakında"; wh.title = "Webhook tetikleme henüz desteklenmiyor"; }
+    try {
+      const pols = await api.get("/api/policies");
+      const repos = pols.map((p) => p.repo).join(", ");
+      const ri = document.querySelector("[data-bind='gh-repos']");
+      if (ri) { ri.value = repos; ri.readOnly = true; ri.title = "İzlenen repolar Politikalar sayfasından yönetilir"; }
+    } catch (e) {}
+
+    if (JIRA) {
+      setVal("[data-bind='jira-domain']", JIRA.base_url);
+      setVal("[data-bind='jira-email']", JIRA.email);
+      setVal("#jira-token", "");
     }
-    const kindSel2 = m.querySelector('select[name="kind"]');
-    if (provSel) provSel.onchange = fillModels;
-    if (kindSel2) kindSel2.onchange = fillModels;
-    fillModels();
+    if (LLM) {
+      setVal("[data-bind='llm-endpoint']", LLM.base_url);
+      setVal("[data-bind='llm-max']", LLM.max_tokens || 2048);
+      const sl = document.querySelector("#temp-slider");
+      if (sl) { sl.value = LLM.temperature != null ? LLM.temperature : 0.3; const tv = $("#temp-val"); if (tv) tv.innerText = sl.value; }
+      await fillModels(LLM);
+    }
+    try {
+      const s = await api.get("/api/settings");
+      const rt = $("#redaction-toggle");
+      if (rt) { rt.checked = !!s.redact_secrets; paintBadge(rt.checked); }
+    } catch (e) {}
+    renderExtra(conns);
+  }
+
+  function setVal(sel, v) { const el = document.querySelector(sel); if (el) el.value = v == null ? "" : v; }
+  function getVal(sel) { const el = document.querySelector(sel); return el ? el.value : ""; }
+
+  async function fillModels() {
+    const sel = document.querySelector("[data-bind='llm-model']");
+    if (!sel || !LLM) return;
+    try {
+      const models = await api.get("/api/llm/models?conn_id=" + encodeURIComponent(LLM.id));
+      sel.innerHTML = models.map((x) => '<option value="' + esc(x.name) + '">' + esc(x.name) + "</option>").join("");
+      if (LLM.model) sel.value = LLM.model;
+    } catch (e) { sel.innerHTML = '<option value="' + esc(LLM.model || "") + '">' + esc(LLM.model || "") + "</option>"; }
+  }
+
+  function paintBadge(on) {
+    const b = $("#redaction-status-badge");
+    if (b) { b.innerText = on ? "Aktif" : "Kapalı"; }
+  }
+
+  async function doTest(conn, label) {
+    if (!conn) { tToast("Bağlantı yok."); return; }
+    tToast(label + " test ediliyor…");
+    try {
+      const r = await api.post("/api/connections/" + encodeURIComponent(conn.id) + "/test", {});
+      tToast((r.ok ? "✓ " : "✗ ") + label + ": " + (r.detail || r.status));
+    } catch (e) { tToast("✗ " + label + ": " + e.message); }
+  }
+
+  async function saveGH() {
+    if (!GH) return;
+    const token = ($("#github-token") || {}).value || "";
+    const body = { name: GH.name, kind: "github", base_url: GH.base_url, owner: getVal("[data-bind='gh-org']"), email: "", project_key: "", provider: "", model: "", temperature: 0.3, max_tokens: 2048, is_default: GH.is_default };
+    if (token) body.token = token;
+    try { await api.put("/api/connections/" + encodeURIComponent(GH.id), body); tToast("GitHub ayarları kaydedildi."); load(); }
+    catch (e) { tToast("Kaydedilemedi: " + e.message); }
+  }
+  async function saveJira() {
+    if (!JIRA) return;
+    const token = ($("#jira-token") || {}).value || "";
+    const body = { name: JIRA.name, kind: "jira", base_url: getVal("[data-bind='jira-domain']"), owner: "", email: getVal("[data-bind='jira-email']"), project_key: JIRA.project_key, provider: "", model: "", temperature: 0.3, max_tokens: 2048, is_default: JIRA.is_default };
+    if (token) body.token = token;
+    try { await api.put("/api/connections/" + encodeURIComponent(JIRA.id), body); tToast("Jira ayarları kaydedildi."); load(); }
+    catch (e) { tToast("Kaydedilemedi: " + e.message); }
+  }
+  async function saveLLM() {
+    if (!LLM) return;
+    const sl = document.querySelector("#temp-slider");
+    const body = { name: LLM.name, kind: "llm", base_url: getVal("[data-bind='llm-endpoint']"), owner: "", email: "", project_key: "", provider: LLM.provider || "ollama", model: getVal("[data-bind='llm-model']"), temperature: sl ? parseFloat(sl.value) : 0.3, max_tokens: parseInt(getVal("[data-bind='llm-max']"), 10) || 2048, is_default: LLM.is_default, token: "" };
+    try { await api.put("/api/connections/" + encodeURIComponent(LLM.id), body); tToast("LLM ayarları kaydedildi."); load(); }
+    catch (e) { tToast("Kaydedilemedi: " + e.message); }
+  }
+
+  function wire() {
+    const map = { "gh-test": () => doTest(GH, "GitHub"), "gh-save": saveGH, "jira-test": () => doTest(JIRA, "Jira"), "jira-save": saveJira, "llm-test": () => doTest(LLM, "LLM"), "llm-save": saveLLM, "sync-all": async () => { await saveGH(); await saveJira(); await saveLLM(); } };
+    document.querySelectorAll("[data-bind]").forEach((b) => {
+      const k = b.dataset.bind;
+      if (!map[k]) return;
+      b.removeAttribute("onclick");
+      b.addEventListener("click", (e) => { e.preventDefault(); map[k](); });
+    });
+    const rt = $("#redaction-toggle");
+    if (rt) {
+      rt.removeAttribute("onchange");
+      rt.addEventListener("change", async () => {
+        try { await api.put("/api/settings", { redact_secrets: rt.checked }); paintBadge(rt.checked); tToast("Redaksiyon " + (rt.checked ? "açıldı" : "kapatıldı") + "."); }
+        catch (e) { tToast("Kaydedilemedi: " + e.message); }
+      });
+    }
+  }
+
+  function renderExtra(conns) {
+    let box = $("#extra-conns");
+    if (!box) {
+      const main = document.querySelector("body > main > div");
+      if (!main) return;
+      box = document.createElement("div");
+      box.id = "extra-conns";
+      main.appendChild(box);
+    }
+    const ids = [GH && GH.id, JIRA && JIRA.id, LLM && LLM.id].filter(Boolean);
+    const rest = conns.filter((c) => ids.indexOf(c.id) === -1);
+    box.innerHTML = '<div class="rounded-xl p-4" style="background:#1e293b;border:1px solid #334155">'
+      + '<div class="flex items-center justify-between mb-2"><h3 class="text-sm font-semibold" style="color:#f8fafc">Diğer Bağlantılar (' + rest.length + ")</h3>"
+      + '<button id="xc-add" class="text-xs px-3 py-1.5 rounded-md" style="background:#6366f1;color:#fff">+ Ekle</button></div>'
+      + (rest.map((c) => '<div class="flex items-center justify-between py-1.5 text-xs" style="border-top:1px solid #334155;color:#94a3b8">'
+        + "<span><b style='color:#f8fafc'>" + esc(c.name) + "</b> · " + esc(c.kind) + (c.provider ? " · " + esc(c.provider) : "") + "</span>"
+        + '<span><button data-xc-test="' + esc(c.id) + '" class="mr-3" style="color:#818cf8">Test</button>'
+        + '<button data-xc-del="' + esc(c.id) + '" style="color:#ef4444">Sil</button></span></div>').join("")
+        || '<div class="text-xs" style="color:#64748b">Ek bağlantı yok. Birden fazla GitHub/Jira buradan eklenir.</div>')
+      + "</div>";
+    const add = box.querySelector("#xc-add");
+    if (add) add.onclick = () => connModal();
+    box.querySelectorAll("[data-xc-test]").forEach((b) => (b.onclick = async () => {
+      try { const r = await api.post("/api/connections/" + encodeURIComponent(b.dataset.xcTest) + "/test", {}); tToast((r.ok ? "✓ " : "✗ ") + (r.detail || r.status)); }
+      catch (e) { tToast("✗ " + e.message); }
+    }));
+    box.querySelectorAll("[data-xc-del]").forEach((b) => (b.onclick = async () => {
+      if (!confirm("Silinsin mi?")) return;
+      try { await api.del("/api/connections/" + encodeURIComponent(b.dataset.xcDel)); load(); }
+      catch (e) { tToast("Silinemedi: " + e.message); }
+    }));
+  }
+
+  function connModal() {
+    const { openModal, closeModal, field, input, formValues, primaryBtn } = window.DAN;
+    const m = openModal("<h3 class='text-base font-semibold mb-3' style='color:#f8fafc'>Yeni Bağlantı</h3>"
+      + field("Ad", input("name", ""))
+      + field("Tür", '<select name="kind" class="w-full px-3 py-2 rounded-md text-sm" style="background:#0f172a;border:1px solid #334155;color:#f8fafc"><option value="github">GitHub</option><option value="jira">Jira</option><option value="llm">LLM</option></select><div class="mb-3"></div>')
+      + field("Base URL", input("base_url", ""))
+      + field("Owner / E-posta", input("owner", ""))
+      + field("Token", '<input type="password" name="token" class="w-full px-3 py-2 rounded-md text-sm" style="background:#0f172a;border:1px solid #334155;color:#f8fafc" /><div class="mb-3"></div>')
+      + field("Proje anahtarı (jira)", input("project_key", ""))
+      + '<div class="flex justify-end">' + primaryBtn("Kaydet") + "</div>");
     m.querySelector('[data-act="save"]').onclick = async () => {
-      const v = formValues(m);
-      try {
-        if (c.id) await api.put("/api/connections/" + encodeURIComponent(c.id), v);
-        else await api.post("/api/connections", v);
-        closeModal(); load();
-      } catch (e) { toast("Kaydedilemedi: " + e.message); }
+      try { await api.post("/api/connections", formValues(m)); closeModal(); load(); }
+      catch (e) { tToast("Kaydedilemedi: " + e.message); }
     };
   }
+
+  wire();
   load();
 })();

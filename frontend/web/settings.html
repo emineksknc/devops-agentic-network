@@ -46,12 +46,12 @@
 </label>
 <div class="flex items-center bg-surface-container-lowest rounded-lg px-3 py-2">
 <span class="font-code-sm text-code-sm text-outline mr-2">@</span>
-<input class="bg-transparent font-code-md text-code-md text-on-surface w-full focus:outline-none" type="text" value="devops-agentic-org"/>
+<input class="bg-transparent font-code-md text-code-md text-on-surface w-full focus:outline-none" type="text" value="devops-agentic-org" data-bind="gh-org"/>
 </div>
 </div>
 <div class="space-y-1">
 <label class="font-body-sm text-body-sm text-on-surface-variant">Varsayılan Depolar</label>
-<input class="w-full bg-surface-container-lowest rounded-lg px-3 py-2 font-code-md text-code-md text-on-surface focus:outline-none" type="text" value="backend-api, payment-gateway, frontend-core"/>
+<input class="w-full bg-surface-container-lowest rounded-lg px-3 py-2 font-code-md text-code-md text-on-surface focus:outline-none" type="text" value="backend-api, payment-gateway, frontend-core" data-bind="gh-repos"/>
 </div>
 <div class="space-y-1">
 <label class="font-body-sm text-body-sm text-on-surface-variant">GitHub Personal Access Token (PAT)</label>
@@ -72,11 +72,11 @@
 </div>
 </div>
 <div class="flex flex-col sm:flex-row gap-space-sm pt-2">
-<button class="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-lg bg-surface-container-highest text-on-surface hover:bg-surface-bright transition-colors font-body-md text-body-md" onclick="triggerToast('GitHub API ve Webhook bağlantısı doğrulandı: 200 OK')">
+<button data-bind="gh-test" class="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-lg bg-surface-container-highest text-on-surface hover:bg-surface-bright transition-colors font-body-md text-body-md" onclick="triggerToast('GitHub API ve Webhook bağlantısı doğrulandı: 200 OK')">
 <span class="material-symbols-outlined text-[18px] text-secondary">cable</span>
           Bağlantıyı Test Et
         </button>
-<button class="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-lg bg-primary text-on-primary font-body-md text-body-md hover:bg-primary-container transition-colors" onclick="triggerToast('GitHub entegrasyon ayarları başarıyla güncellendi.')">
+<button data-bind="gh-save" class="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-lg bg-primary text-on-primary font-body-md text-body-md hover:bg-primary-container transition-colors" onclick="triggerToast('GitHub entegrasyon ayarları başarıyla güncellendi.')">
 <span class="material-symbols-outlined text-[18px]">save</span>
           GitHub Ayarlarını Kaydet
         </button>
@@ -105,13 +105,13 @@
 <div class="space-y-1">
 <label class="font-body-sm text-body-sm text-on-surface-variant">Jira Domain</label>
 <div class="flex items-center bg-surface-container-lowest rounded-lg px-3 py-2">
-<input class="bg-transparent font-code-md text-code-md text-on-surface w-full focus:outline-none" type="text" value="agentic-devops.atlassian.net"/>
+<input class="bg-transparent font-code-md text-code-md text-on-surface w-full focus:outline-none" type="text" value="agentic-devops.atlassian.net" data-bind="jira-domain"/>
 <span class="material-symbols-outlined text-[16px] text-outline">cloud</span>
 </div>
 </div>
 <div class="space-y-1">
 <label class="font-body-sm text-body-sm text-on-surface-variant">Hizmet Hesabı E-postası</label>
-<input class="w-full bg-surface-container-lowest rounded-lg px-3 py-2 font-code-md text-code-md text-on-surface focus:outline-none" type="email" value="automation-bot@company.io"/>
+<input class="w-full bg-surface-container-lowest rounded-lg px-3 py-2 font-code-md text-code-md text-on-surface focus:outline-none" type="email" value="automation-bot@company.io" data-bind="jira-email"/>
 </div>
 <div class="space-y-1">
 <label class="font-body-sm text-body-sm text-on-surface-variant">Jira API Token</label>
@@ -123,11 +123,11 @@
 </div>
 </div>
 <div class="flex flex-col sm:flex-row gap-space-sm pt-2">
-<button class="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-lg bg-surface-container-highest text-on-surface hover:bg-surface-bright transition-colors font-body-md text-body-md" onclick="triggerToast('Atlassian Jira REST API v3 erişimi doğrulandı.')">
+<button data-bind="jira-test" class="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-lg bg-surface-container-highest text-on-surface hover:bg-surface-bright transition-colors font-body-md text-body-md" onclick="triggerToast('Atlassian Jira REST API v3 erişimi doğrulandı.')">
 <span class="material-symbols-outlined text-[18px] text-tertiary">swap_horiz</span>
           Jira API Bağlantısını Test Et
         </button>
-<button class="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-lg bg-primary text-on-primary font-body-md text-body-md hover:bg-primary-container transition-colors" onclick="triggerToast('Jira servis parametreleri güvenle saklandı.')">
+<button data-bind="jira-save" class="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-lg bg-primary text-on-primary font-body-md text-body-md hover:bg-primary-container transition-colors" onclick="triggerToast('Jira servis parametreleri güvenle saklandı.')">
 <span class="material-symbols-outlined text-[18px]">save</span>
           Jira Ayarlarını Kaydet
         </button>
@@ -154,13 +154,13 @@
 <label class="font-body-sm text-body-sm text-on-surface-variant">LLM Host / Endpoint</label>
 <div class="flex items-center bg-surface-container-lowest rounded-lg px-3 py-2">
 <span class="font-code-sm text-code-sm text-secondary mr-2">$</span>
-<input class="bg-transparent font-code-md text-code-md text-on-surface w-full focus:outline-none" type="text" value="https://llm-gateway.internal.mesh:8000/v1"/>
+<input class="bg-transparent font-code-md text-code-md text-on-surface w-full focus:outline-none" type="text" value="https://llm-gateway.internal.mesh:8000/v1" data-bind="llm-endpoint"/>
 </div>
 </div>
 <div class="space-y-1">
 <label class="font-body-sm text-body-sm text-on-surface-variant">Aktif Model Seçimi</label>
 <div class="relative">
-<select class="w-full bg-surface-container-lowest rounded-lg px-3 py-2 font-code-md text-code-md text-on-surface focus:outline-none appearance-none pr-8">
+<select data-bind="llm-model" class="w-full bg-surface-container-lowest rounded-lg px-3 py-2 font-code-md text-code-md text-on-surface focus:outline-none appearance-none pr-8">
 <option selected="" value="llama-70b">Meta Llama 3.1 (70B Instruct)</option>
 <option value="llama-8b">Meta Llama 3.1 (8B)</option>
 <option value="mistral-large">Mistral Large 2</option>
@@ -181,15 +181,15 @@
 </div>
 <div class="space-y-1">
 <label class="font-body-sm text-body-sm text-on-surface-variant">Maksimum Token</label>
-<input class="w-full bg-surface-container-lowest rounded-lg px-3 py-2 font-code-md text-code-md text-on-surface focus:outline-none" type="number" value="4096"/>
+<input class="w-full bg-surface-container-lowest rounded-lg px-3 py-2 font-code-md text-code-md text-on-surface focus:outline-none" type="number" value="4096" data-bind="llm-max"/>
 </div>
 </div>
 <div class="flex flex-col sm:flex-row gap-space-sm pt-2">
-<button class="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-lg bg-surface-container-highest text-on-surface hover:bg-surface-bright transition-colors font-body-md text-body-md" onclick="triggerToast('LLM test yanıtı alındı: Gecikme 142ms, TTFT 45ms')">
+<button data-bind="llm-test" class="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-lg bg-surface-container-highest text-on-surface hover:bg-surface-bright transition-colors font-body-md text-body-md" onclick="triggerToast('LLM test yanıtı alındı: Gecikme 142ms, TTFT 45ms')">
 <span class="material-symbols-outlined text-[18px] text-secondary">psychology</span>
           Model Yanıtını Test Et
         </button>
-<button class="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-lg bg-primary text-on-primary font-body-md text-body-md hover:bg-primary-container transition-colors" onclick="triggerToast('LLM çıkarım motoru parametreleri kaydedildi.')">
+<button data-bind="llm-save" class="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-lg bg-primary text-on-primary font-body-md text-body-md hover:bg-primary-container transition-colors" onclick="triggerToast('LLM çıkarım motoru parametreleri kaydedildi.')">
 <span class="material-symbols-outlined text-[18px]">save</span>
           LLM Ayarlarını Kaydet
         </button>
@@ -234,7 +234,7 @@
 </div>
 </div>
 <div class="pt-2">
-<button class="w-full flex items-center justify-center gap-space-sm py-3.5 px-gutter rounded-xl bg-primary text-on-primary hover:bg-primary-container shadow-lg transition-all active:scale-[0.99]" onclick="syncAllSettings()">
+<button class="w-full flex items-center justify-center gap-space-sm py-3.5 px-gutter rounded-xl bg-primary text-on-primary hover:bg-primary-container shadow-lg transition-all active:scale-[0.99]" onclick="syncAllSettings()" data-bind="sync-all">
 <span class="material-symbols-outlined text-[22px]">sync</span>
 <span class="font-title-sm text-title-sm font-semibold">Tüm Değişiklikleri Senkronize Et</span>
 </button>

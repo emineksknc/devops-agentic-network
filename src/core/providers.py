@@ -18,6 +18,7 @@ class ChatProvider:
         model: str,
         messages: List[Dict[str, str]],
         temperature: float = 0.3,
+        max_tokens: int = 2048,
         json_mode: bool = False,
     ) -> str:
         raise NotImplementedError
@@ -27,7 +28,7 @@ class OllamaProvider(ChatProvider):
     def __init__(self, host: str = "http://localhost:11434"):
         self.host = (host or "http://localhost:11434").rstrip("/")
 
-    async def chat(self, *, model, messages, temperature=0.3, json_mode=False) -> str:
+    async def chat(self, *, model, messages, temperature=0.3, max_tokens=2048, json_mode=False) -> str:
         import ollama
 
         try:
@@ -37,7 +38,7 @@ class OllamaProvider(ChatProvider):
         kwargs: Dict[str, Any] = {
             "model": model,
             "messages": messages,
-            "options": {"temperature": temperature},
+            "options": {"temperature": temperature, "num_predict": max_tokens},
         }
         if json_mode:
             kwargs["format"] = "json"
@@ -57,10 +58,11 @@ class OpenAIProvider(ChatProvider):
         self.base_url = (base_url or "https://api.openai.com/v1").rstrip("/")
         self.api_version = api_version
 
-    async def chat(self, *, model, messages, temperature=0.3, json_mode=False) -> str:
+    async def chat(self, *, model, messages, temperature=0.3, max_tokens=2048, json_mode=False) -> str:
         url = f"{self.base_url}/chat/completions"
         params = {"api-version": self.api_version} if self.api_version else None
-        payload: Dict[str, Any] = {"model": model, "messages": messages, "temperature": temperature}
+        payload: Dict[str, Any] = {"model": model, "messages": messages,
+                                   "temperature": temperature, "max_tokens": max_tokens}
         if json_mode:
             payload["response_format"] = {"type": "json_object"}
         async with httpx.AsyncClient(timeout=60.0) as client:
@@ -82,7 +84,7 @@ class AnthropicProvider(ChatProvider):
         self.api_key = api_key
         self.base_url = (base_url or "https://api.anthropic.com").rstrip("/")
 
-    async def chat(self, *, model, messages, temperature=0.3, json_mode=False) -> str:
+    async def chat(self, *, model, messages, temperature=0.3, max_tokens=2048, json_mode=False) -> str:
         system = "\n".join(m["content"] for m in messages if m["role"] == "system")
         turns = [{"role": m["role"], "content": m["content"]} for m in messages if m["role"] != "system"]
         if json_mode:
@@ -90,7 +92,7 @@ class AnthropicProvider(ChatProvider):
         async with httpx.AsyncClient(timeout=60.0) as client:
             resp = await client.post(
                 f"{self.base_url}/v1/messages",
-                json={"model": model, "max_tokens": 2048, "temperature": temperature,
+                json={"model": model, "max_tokens": max_tokens, "temperature": temperature,
                       "system": system, "messages": turns},
                 headers={"x-api-key": self.api_key, "anthropic-version": "2023-06-01"},
             )

@@ -17,6 +17,14 @@ class LLMClient:
         c = connection or {}
         self.provider_name = (c.get("provider") or getattr(settings, "LLM_PROVIDER", "ollama")).lower()
         self.model = c.get("model") or getattr(settings, "LLM_MODEL", "llama3")
+        try:
+            self.temperature = float(c.get("temperature") or 0.3)
+        except (TypeError, ValueError):
+            self.temperature = 0.3
+        try:
+            self.max_tokens = int(c.get("max_tokens") or 2048)
+        except (TypeError, ValueError):
+            self.max_tokens = 2048
         self.provider = build_provider(self.provider_name, c, settings)
 
     async def generate_response(
@@ -44,7 +52,8 @@ class LLMClient:
                     content = await self.provider.chat(
                         model=self.model,
                         messages=messages,
-                        temperature=0.3,  # Teknik özetler için yaratıcılığı düşük tutuyoruz
+                        temperature=self.temperature,
+                        max_tokens=self.max_tokens,
                         json_mode=(response_format == "json"),
                     )
 

@@ -149,6 +149,9 @@ class JiraAgent(BaseAgent):
         ai_comment_summary = ""
         if code_changes and code_changes.strip() and action in ["comment", "both"]:
             try:
+                from src.core import redact as redact_mod
+
+                safe_changes = redact_mod.redact(code_changes) if redact_mod.is_enabled() else code_changes
                 logger.info(f"🧠 JiraAgent: Lokal LLM (Ollama) ile kod diff analizi yapılıyor...")
                 
                 # Eğer kod denetimden kaldıysa promptu ona göre şekillendiriyoruz
@@ -159,7 +162,7 @@ class JiraAgent(BaseAgent):
                         "Görevin, bu kodun neden başarısız olduğunu ve ne tür riskler barındırdığını "
                         "maksimum 2-3 cümlelik, kurumsal, profesyonel ve Türkçe bir dille özetlemektir.\n"
                         "Doğrudan teknik özeti dön, 'İşte hata:' gibi ifadeler kullanma.\n\n"
-                        f"Başarısız Olan Kod Değişiklikleri:\n{code_changes}"
+                        f"Başarısız Olan Kod Değişiklikleri:\n{safe_changes}"
                     )
                 else:
                     comment_prompt = (
@@ -168,7 +171,7 @@ class JiraAgent(BaseAgent):
                         "Görevin, bu kod değişikliğini teknik olarak analiz edip, Jira kartına yazılacak "
                         "maksimum 2-3 cümlelik, kurumsal, profesyonel ve Türkçe bir teknik özet hazırlamaktır.\n"
                         "Lütfen doğrudan teknik özeti dön, 'İşte özet:' gibi ifadeler kullanma.\n\n"
-                        f"Kod Değişiklikleri:\n{code_changes}"
+                        f"Kod Değişiklikleri:\n{safe_changes}"
                     )
                     
                 ai_comment_summary = await self.llm.generate_response(

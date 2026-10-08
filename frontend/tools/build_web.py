@@ -162,6 +162,42 @@ def _inject_nav_links(html: str) -> str:
     return html.replace(anchor, extras + anchor, 1)
 
 
+SETTINGS_BINDS = ["gh-test", "gh-save", "jira-test", "jira-save", "llm-test", "llm-save"]
+
+
+def _tag_settings(html: str) -> str:
+    """Ayar sablonunun buton/input'larini sirayla etiketler (tasarim aynen kalir)."""
+    import re
+
+    count = [0]
+
+    def tag_btn(m):
+        if count[0] >= len(SETTINGS_BINDS):
+            return m.group(0)
+        name = SETTINGS_BINDS[count[0]]
+        count[0] += 1
+        return m.group(0).replace("<button", f'<button data-bind="{name}"', 1)
+
+    html = re.sub(r'<button[^>]*onclick="triggerToast\(\'[^\']*\'\)"[^>]*>', tag_btn, html)
+    html = html.replace("onclick=\"syncAllSettings()\"", 'onclick="syncAllSettings()" data-bind="sync-all"', 1)
+    html = html.replace('value="devops-agentic-org"', 'value="devops-agentic-org" data-bind="gh-org"', 1)
+    html = html.replace('value="backend-api, payment-gateway, frontend-core"',
+                        'value="backend-api, payment-gateway, frontend-core" data-bind="gh-repos"', 1)
+    html = re.sub(r'value="https://llm-gateway[^"]*"', lambda m: m.group(0) + ' data-bind="llm-endpoint"', html, count=1)
+    html = html.replace('value="4096"', 'value="4096" data-bind="llm-max"', 1)
+    html = re.sub(r'value="agentic-devops\.atlassian\.net"',
+                  'value="agentic-devops.atlassian.net" data-bind="jira-domain"', html, count=1)
+    html = re.sub(r'value="automation-bot@company\.io"',
+                  'value="automation-bot@company.io" data-bind="jira-email"', html, count=1)
+    # model select: name'siz tek select
+    html = html.replace(
+        '<select class="w-full bg-surface-container-lowest rounded-lg px-3 py-2 font-code-md text-code-md text-on-surface focus:outline-none appearance-none pr-8">',
+        '<select data-bind="llm-model" class="w-full bg-surface-container-lowest rounded-lg px-3 py-2 font-code-md text-code-md text-on-surface focus:outline-none appearance-none pr-8">',
+        1,
+    )
+    return html
+
+
 def adapt(html: str, page: str) -> str:
     # 1) mobil alt navigasyon: sadece mobilde goster
     html = html.replace(
@@ -188,6 +224,9 @@ def adapt(html: str, page: str) -> str:
     html = _inject_nav_links(html)
     # 3c) sablonun sahte ortam etiketini notrle (canli karsiligi web.js'te)
     html = html.replace("PROD-EU-1", "LOCAL")
+    # 3d) ayar sayfasi: tasarimi koru, baglama noktalarini etiketle
+    if page == "settings":
+        html = _tag_settings(html)
     # 4) body'ye sayfa kimligi + asset referanslari (</head> oncesi CSS, </body> oncesi JS)
     html = html.replace("<body", '<body data-page="%s"' % page, 1)
     html = html.replace(
