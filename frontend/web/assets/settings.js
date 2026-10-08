@@ -82,7 +82,13 @@
     if (b) { b.innerText = on ? "Aktif" : "Kapalı"; }
   }
 
-  async function doTest(conn, label) {
+  async function doTest(kind, label, saver) {
+    // Once ekrandaki degerleri kaydet, sonra test et (yoksa eski token denenir)
+    if (saver) {
+      const saved = await saver(true);
+      if (!saved) return;
+    }
+    const conn = kind === "github" ? GH : kind === "jira" ? JIRA : LLM;
     if (!conn) { tToast("Bağlantı yok."); return; }
     tToast(label + " test ediliyor…");
     try {
@@ -91,34 +97,49 @@
     } catch (e) { tToast("✗ " + label + ": " + e.message); }
   }
 
-  async function saveGH() {
-    if (!GH) return;
+  async function saveGH(silent) {
+    if (!GH) return false;
     const token = ($("#github-token") || {}).value || "";
     const secret = ($("#webhook-token") || {}).value || "";
     const body = { name: GH.name, kind: "github", base_url: GH.base_url, owner: getVal("[data-bind='gh-org']"), email: "", project_key: "", provider: "", model: "", temperature: 0.3, max_tokens: 2048, is_default: GH.is_default };
     if (token) body.token = token;
     if (secret) body.webhook_secret = secret;
-    try { await api.put("/api/connections/" + encodeURIComponent(GH.id), body); tToast("GitHub ayarları kaydedildi."); load(); }
-    catch (e) { tToast("Kaydedilemedi: " + e.message); }
+    try {
+      await api.put("/api/connections/" + encodeURIComponent(GH.id), body);
+      const fresh = await api.get("/api/connections");
+      GH = byKind(fresh, "github");
+      if (!silent) { tToast("GitHub ayarları kaydedildi."); load(); }
+      return true;
+    } catch (e) { tToast("Kaydedilemedi: " + e.message); return false; }
   }
-  async function saveJira() {
-    if (!JIRA) return;
+  async function saveJira(silent) {
+    if (!JIRA) return false;
     const token = ($("#jira-token") || {}).value || "";
     const body = { name: JIRA.name, kind: "jira", base_url: getVal("[data-bind='jira-domain']"), owner: "", email: getVal("[data-bind='jira-email']"), project_key: JIRA.project_key, provider: "", model: "", temperature: 0.3, max_tokens: 2048, is_default: JIRA.is_default };
     if (token) body.token = token;
-    try { await api.put("/api/connections/" + encodeURIComponent(JIRA.id), body); tToast("Jira ayarları kaydedildi."); load(); }
-    catch (e) { tToast("Kaydedilemedi: " + e.message); }
+    try {
+      await api.put("/api/connections/" + encodeURIComponent(JIRA.id), body);
+      const fresh = await api.get("/api/connections");
+      JIRA = byKind(fresh, "jira");
+      if (!silent) { tToast("Jira ayarları kaydedildi."); load(); }
+      return true;
+    } catch (e) { tToast("Kaydedilemedi: " + e.message); return false; }
   }
-  async function saveLLM() {
-    if (!LLM) return;
+  async function saveLLM(silent) {
+    if (!LLM) return false;
     const sl = document.querySelector("#temp-slider");
     const body = { name: LLM.name, kind: "llm", base_url: getVal("[data-bind='llm-endpoint']"), owner: "", email: "", project_key: "", provider: LLM.provider || "ollama", model: getVal("[data-bind='llm-model']"), temperature: sl ? parseFloat(sl.value) : 0.3, max_tokens: parseInt(getVal("[data-bind='llm-max']"), 10) || 2048, is_default: LLM.is_default, token: "" };
-    try { await api.put("/api/connections/" + encodeURIComponent(LLM.id), body); tToast("LLM ayarları kaydedildi."); load(); }
-    catch (e) { tToast("Kaydedilemedi: " + e.message); }
+    try {
+      await api.put("/api/connections/" + encodeURIComponent(LLM.id), body);
+      const fresh = await api.get("/api/connections");
+      LLM = byKind(fresh, "llm");
+      if (!silent) { tToast("LLM ayarları kaydedildi."); load(); }
+      return true;
+    } catch (e) { tToast("Kaydedilemedi: " + e.message); return false; }
   }
 
   function wire() {
-    const map = { "gh-test": () => doTest(GH, "GitHub"), "gh-save": saveGH, "jira-test": () => doTest(JIRA, "Jira"), "jira-save": saveJira, "llm-test": () => doTest(LLM, "LLM"), "llm-save": saveLLM, "sync-all": async () => { await saveGH(); await saveJira(); await saveLLM(); } };
+    const map = { "gh-test": () => doTest("github", "GitHub", saveGH), "gh-save": () => saveGH(false), "jira-test": () => doTest("jira", "Jira", saveJira), "jira-save": () => saveJira(false), "llm-test": () => doTest("llm", "LLM", saveLLM), "llm-save": () => saveLLM(false), "sync-all": async () => { await saveGH(true); await saveJira(true); await saveLLM(true); tToast("Tümü kaydedildi."); load(); } };
     document.querySelectorAll("[data-bind]").forEach((b) => {
       const k = b.dataset.bind;
       if (!map[k]) return;
