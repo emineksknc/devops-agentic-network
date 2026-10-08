@@ -60,6 +60,9 @@
     const hint = m.querySelector("#m-hint");
     const provSel = m.querySelector('select[name="provider"]');
     async function fillModels() {
+      const kindSel = m.querySelector('select[name="kind"]');
+      if (hint) hint.style.display = (kindSel && kindSel.value === "llm") ? "" : "none";
+      if (!kindSel || kindSel.value !== "llm") return;
       const prov = provSel ? provSel.value : "ollama";
       const q = c.id ? "?conn_id=" + encodeURIComponent(c.id) : "?provider=" + encodeURIComponent(prov);
       try {
@@ -68,7 +71,9 @@
         if (hint) hint.textContent = models.length ? models.length + " model bulundu (" + (models[0].source || "") + ")" : "Model bulunamadı";
       } catch (e) { if (hint) hint.textContent = "Liste alınamadı: " + e.message; }
     }
+    const kindSel = m.querySelector('select[name="kind"]');
     if (provSel) provSel.onchange = fillModels;
+    if (kindSel) kindSel.onchange = fillModels;
     fillModels();
     m.querySelector('[data-act="save"]').onclick = async () => {
       const v = formValues(m);
