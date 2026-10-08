@@ -27,7 +27,7 @@ def _parse_repo(repo: str) -> dict:
 
 async def execute_run(
     run_id: str, repo: str, user_goal: str, dry_run: bool, count: int,
-    github_conn_id: str = "", jira_conn_id: str = "",
+    github_conn_id: str = "", jira_conn_id: str = "", llm_conn_id: str = "",
 ) -> None:
     from src.agents.orchestrator_agent import OrchestratorAgent
 
@@ -37,14 +37,16 @@ async def execute_run(
         ji_id = jira_conn_id or ((policy or {}).get("jira_conn_id") or "")
         gh_conn = db.get_connection(conn, gh_id) if gh_id else None
         ji_conn = db.get_connection(conn, ji_id) if ji_id else None
+        ll_conn = db.get_connection(conn, llm_conn_id) if llm_conn_id else None
         gh_conn = gh_conn or db.default_connection(conn, "github") or {}
         ji_conn = ji_conn or db.default_connection(conn, "jira") or {}
+        ll_conn = ll_conn or db.default_connection(conn, "llm") or {}
         conn.execute(
-            "UPDATE runs SET status='running', github_conn_id=?, jira_conn_id=? WHERE id=?",
-            (gh_conn.get("id", ""), ji_conn.get("id", ""), run_id),
+            "UPDATE runs SET status='running', github_conn_id=?, jira_conn_id=?, llm_conn_id=? WHERE id=?",
+            (gh_conn.get("id", ""), ji_conn.get("id", ""), ll_conn.get("id", ""), run_id),
         )
     try:
-        orch = OrchestratorAgent(connections={"github": gh_conn, "jira": ji_conn})
+        orch = OrchestratorAgent(connections={"github": gh_conn, "jira": ji_conn, "llm": ll_conn})
         gh = _parse_repo(repo)
         gh["count"] = count
         result = await orch.route_and_execute(user_goal, dry_run=dry_run, github_context=gh)
@@ -100,7 +102,7 @@ async def create_run(body: RunCreate, background: BackgroundTasks) -> RunOut:
         )
     background.add_task(
         execute_run, run_id, body.repo, body.user_goal, body.dry_run, body.count,
-        body.github_conn_id, body.jira_conn_id,
+        body.github_conn_id, body.jira_conn_id, body.llm_conn_id,
     )
     return RunOut(run_id=run_id, repo=body.repo, status="queued", dry_run=body.dry_run, created_at=_now())
 

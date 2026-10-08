@@ -10,10 +10,18 @@ class ReporterAgent(BaseAgent):
     GitHub commit geçmişini ve operasyon loglarını okuyarak
     Lokal LLM yardımıyla yönetici dostu Markdown bültenleri hazırlayan ajan.
     """
-    def __init__(self, name: str = "ReporterAgent", model_client: Any = None):
+    def __init__(self, name: str = "ReporterAgent", model_client: Any = None, system_prompt: str = None, **kwargs):
         super().__init__(name, model_client)
         # Eğer dışarıdan bir model client verilmediyse kendi lokal istemcisini ayağa kaldırır
         self.llm = model_client or LLMClient()
+        self.system_prompt = system_prompt or (
+            "Sen kıdemli bir Teknik Ürün Yöneticisisin (Technical Product Manager). "
+            "Sana mühendislerden gelen ham GitHub commit mesajları verilecek. "
+            "Görevin, bu ham teknik dili tamamen Türkçe, kurumsal, şık ve iş odaklı (business-value) "
+            "bir Markdown Sürüm Bültenine (Release Notes) dönüştürmektir. "
+            "Teknik terimleri (Örn: null pointer, hotfix, connection leak) yöneticilerin anlayacağı "
+            "kararlılık, güvenlik ve performans kazanımları olarak ifade et. Gereksiz SHA kodlarını raporda sergileme."
+        )
         self.register_tool("generate_markdown_report", self.generate_markdown_report)
 
     async def generate_markdown_report(self, raw_commits: List[Dict[str, Any]]) -> str:
@@ -28,21 +36,14 @@ class ReporterAgent(BaseAgent):
         for c in raw_commits:
             commit_logs += f"- SHA: {c.get('sha')}, Yazar: {c.get('author')}, Mesaj: {c.get('message')}\n"
 
-        system_prompt = (
-            "Sen kıdemli bir Teknik Ürün Yöneticisisin (Technical Product Manager). "
-            "Sana mühendislerden gelen ham GitHub commit mesajları verilecek. "
-            "Görevin, bu ham teknik dili tamamen Türkçe, kurumsal, şık ve iş odaklı (business-value) "
-            "bir Markdown Sürüm Bültenine (Release Notes) dönüştürmektir. "
-            "Teknik terimleri (Örn: null pointer, hotfix, connection leak) yöneticilerin anlayacağı "
-            "kararlılık, güvenlik ve performans kazanımları olarak ifade et. Gereksiz SHA kodlarını raporda sergileme."
-        )
+        system_prompt = self.system_prompt
 
         user_prompt = (
             f"Lütfen aşağıdaki ham commit geçmişini profesyonel bir bülten haline getir:\n\n{commit_logs}"
         )
 
         logger.info("🧠 Lokal LLM (Ollama) teknik bülteni oluşturmak için tetikleniyor...")
-        report = await self.llm.generate_response(system_prompt, user_prompt)
+        report = await self.llm.generate_response(system_prompt, user_prompt, trace_name="reporter.build")
         return report
 
     async def run(self, task_description: str, context: Dict[str, Any] = None) -> Dict[str, Any]:

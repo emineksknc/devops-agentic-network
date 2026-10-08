@@ -1,32 +1,72 @@
 import logging
-import json
-from typing import List, Dict, Any
+from typing import Dict, Any
 from src.core.base_agent import BaseAgent
 from src.core.llm_client import LLMClient
+from src.core.registry import registry
 from src.agents.github_agent import GitHubAgent
 from src.agents.jira_agent import JiraAgent
 from src.agents.reporter_agent import ReporterAgent
-from src.agents.reviewer_agent import ReviewerAgent  # 🎯 1. Yeni ajanı import ediyoruz
+from src.agents.reviewer_agent import ReviewerAgent
 from src.config.settings import settings
 
 logger = logging.getLogger("OrchestratorAgent")
 
+ORCHESTRATOR_PLAN_PROMPT = (
+    "Sen bir DevOps Orkestra Sefisin. Elinde su 4 alt ajan (arac) var:\n"
+    "1. 'github_agent': Canli depodan son commitleri okur.\n"
+    "2. 'reviewer_agent': Kod kalitesi ve guvenlik analizini yapip PASSED/FAILED raporlar.\n"
+    "3. 'jira_agent': Bulunan biletleri Jira'da gunceller.\n"
+    "4. 'reporter_agent': Commitlerden Turkce surum raporu hazirlar.\n\n"
+    "Kullanicinin hedefine bakarak, hangi sirayla hangi ajanlari calistirman gerektigini planla.\n"
+    "Yonlendirme Kurallari: Kodlari incelemeden kalite analizi veya jira guncellemesi yapamazsin.\n"
+    "Yanıtını SADECE ve SADECE su JSON formatinda don, baska hicbir aciklama yazma:\n"
+    "{\n"
+    '  "plan": ["ajan_adi_1", "ajan_adi_2"],\n'
+    '  "reason": "Bu plani yapma nedenin"\n'
+    "}"
+)
+
+
+def _register_defaults() -> None:
+    if "github_agent" not in registry._specs:
+        from src.agents.reporter_agent import ReporterAgent as _Rep
+        from src.agents.reviewer_agent import ReviewerAgent as _Rev
+
+        registry.register("github_agent", GitHubAgent)
+        registry.register("reviewer_agent", ReviewerAgent, system_prompt=_Rev.DEFAULT_SYSTEM_PROMPT)
+        registry.register("jira_agent", JiraAgent)
+        registry.register("reporter_agent", ReporterAgent)
+        registry.register("orchestrator", OrchestratorAgent, system_prompt=ORCHESTRATOR_PLAN_PROMPT)
+
+
 class OrchestratorAgent(BaseAgent):
+    """Ince orkestrator: ajanlari baglantilarla kurar, akisi LangGraph'a devreder."""
+
     def __init__(self, name: str = "OrchestratorAgent", model_client: Any = None, connections: Dict[str, Any] = None):
         super().__init__(name, model_client)
-        self.llm = model_client or LLMClient()
+        _register_defaults()
 
         conns = connections or {}
         github_conn = conns.get("github") or {}
         jira_conn = conns.get("jira") or {}
+        llm_conn = conns.get("llm") or {}
+        self._connections = {"github": github_conn, "jira": jira_conn, "llm": llm_conn}
+        self.llm = model_client or LLMClient(connection=llm_conn)
 
-        self.github_worker = GitHubAgent(connection=github_conn)
+        # Tum alt ajanlar run'in LLM baglantisini paylasir (provider secimi tek noktada)
+        self.github_worker = registry.build("github_agent", connection=github_conn, model_client=self.llm)
         # Bilet anahtari Jira baglantisindan gelir (cok projeli kurumlar)
         if jira_conn.get("project_key"):
             self.github_worker.project_key = jira_conn["project_key"]
-        self.jira_worker = JiraAgent(connection=jira_conn)
-        self.reporter_worker = ReporterAgent()
-        self.reviewer_worker = ReviewerAgent()  # 🎯 2. Ajanı ayağa kaldırıyoruz
+        self.jira_worker = registry.build("jira_agent", connection=jira_conn, model_client=self.llm)
+        self.reporter_worker = registry.build(
+            "reporter_agent", system_prompt=registry.system_prompt("reporter_agent") or None,
+            model_client=self.llm,
+        )
+        self.reviewer_worker = registry.build(
+            "reviewer_agent", system_prompt=registry.system_prompt("reviewer_agent") or None,
+            model_client=self.llm,
+        )
 
     async def route_and_execute(
         self,
@@ -34,176 +74,42 @@ class OrchestratorAgent(BaseAgent):
         dry_run: bool = False,
         github_context: Dict[str, Any] = None,
     ) -> Dict[str, Any]:
-        logger.info("🎼 Şef Ajan (Orchestrator) otonom iş planı hazırlıyor...")
+        from src.agents.graph import build_graph
 
-        system_prompt = (
-            "Sen bir DevOps Orkestra Şefisin. Elinde şu 4 alt ajan (araç) var:\n"
-            "1. 'github_agent': Canlı depodan son commitleri okur.\n"
-            "2. 'reviewer_agent': Kod kalitesi ve güvenlik analizini yapıp PASSED/FAILED raporlar.\n"
-            "3. 'jira_agent': Bulunan biletleri Jira'da günceller.\n"
-            "4. 'reporter_agent': Commitlerden Türkçe sürüm raporu hazırlar.\n\n"
-            "Kullanıcının hedefine bakarak, hangi sırayla hangi ajanları çalıştırman gerektiğini planla.\n"
-            "Yönlendirme Kuralları: Kodları incelemeden kalite analizi veya jira güncellemesi yapamazsın.\n"
-            "Yanıtını SADECE ve SADECE şu JSON formatında dön, başka hiçbir açıklama yazma:\n"
-            "{\n"
-            "  \"plan\": [\"ajan_adi_1\", \"ajan_adi_2\"],\n"
-            "  \"reason\": \"Bu planı yapma nedenin\"\n"
-            "}"
-        )
-
-        llm_plan_raw = await self.llm.generate_response(system_prompt, f"Hedef: {user_goal}")
-        
-        print("\n==================================================")
-        print("🧠 OLLAMA TARAFINDAN OLUŞTURULAN OTONOM İŞ PLANI:")
-        print("==================================================")
-        print(llm_plan_raw)
-        print("==================================================\n")
-
-        context = {}
-        try:
-            plan_json = json.loads(llm_plan_raw.replace("```json", "").replace("```", "").strip())
-            execution_steps = plan_json.get("plan", [])
-            logger.info(f"✅ LLM planı başarıyla parse edildi. Adımlar: {execution_steps}")
-        except Exception as e:
-            logger.warning(
-                f"⚠️ LLM geçerli bir JSON dönmedi! Hata: {e}. Fallback akışı aktif ediliyor."
-            )
-            execution_steps = ["github_agent", "reviewer_agent", "jira_agent", "reporter_agent"]
-
-        # Kalite kontrol durumunu izlemek için bir bayrak tutuyoruz
-        review_passed = True
-        review_comment = ""
-
-        for step in execution_steps:
-            # 1. GITHUB ADIMI
-            if step == "github_agent":
-                print(f"[Orchestrator] ⚙️ LLM Kararı: github_agent tetikleniyor...")
-                gh = github_context or {}
-                github_context = {
-                    "owner": gh.get("owner") or self.github_worker.default_owner,
-                    "repo": gh.get("repo", settings.GITHUB_REPO),
-                    "count": gh.get("count", 3),
-                }
-                github_result = await self.github_worker.run("Scan", context=github_context)
-
-                # 🎯 Her commit kendi bilet ID'si + diff'iyle izole bir "birim" (unit) olarak taşınıyor
-                context["commit_units"] = github_result.get("extracted_data", {}).get("commit_units", [])
-                context["raw_commits"] = github_result.get("extracted_data", {}).get("raw_commits", [])
-
-            # 2. REVIEWER ADIMI (🎯 Kalite Kapısı - artık her commit için ayrı ayrı çalışır)
-            elif step == "reviewer_agent" and context.get("commit_units"):
-                print(f"[Orchestrator] ⚙️ LLM Kararı: reviewer_agent tetikleniyor...")
-                for unit in context["commit_units"]:
-                    if not unit.get("code_changes") or not unit["code_changes"].strip():
-                        unit["review_status"] = "PASSED"
-                        unit["review_comment"] = "İncelenecek kod değişikliği bulunamadı."
-                        continue
-
-                    reviewer_result = await self.reviewer_worker.run(
-                        "Review code quality", context={"code_changes": unit["code_changes"]}
-                    )
-                    unit["review_status"] = reviewer_result.get("review_status", "FAILED")
-                    unit["review_comment"] = reviewer_result.get("review_comment", "")
-
-                    if unit["review_status"] == "FAILED":
-                        logger.warning(
-                            f"🚨 Commit {unit.get('short_sha')} içinde kritik kod kalitesi/güvenlik "
-                            f"riski saptandı! Sadece bu commit'e ait bilet(ler) kilitlenecek."
-                        )
-
-                # Genel rapor/özet için: en az bir commit FAILED ise akışı "kısmen bloklu" say
-                if any(u.get("review_status") == "FAILED" for u in context["commit_units"]):
-                    review_passed = False
-
-            # 3. JIRA ADIMI (🎯 Dynamic Gatekeeping - artık her commit kendi review sonucunu taşıyor)
-            elif step == "jira_agent" and context.get("commit_units"):
-                any_ticket_processed = False
-                for unit in context["commit_units"]:
-                    if not unit.get("jira_ids"):
-                        continue
-                    any_ticket_processed = True
-
-                    unit_review_passed = unit.get("review_status", "PASSED") != "FAILED"
-                    print(
-                        f"[Orchestrator] ⚙️ LLM Kararı: jira_agent tetikleniyor "
-                        f"(commit {unit.get('short_sha')} -> {unit['jira_ids']})..."
-                    )
-
-                    if not unit_review_passed:
-                        logger.info(
-                            f"❌ Commit {unit.get('short_sha')} onay almadığı için ilgili Jira "
-                            f"bilet(ler)ine blokaj verisi ve yorumu hazırlanıyor."
-                        )
-                        jira_context = {
-                            "jira_ids": unit["jira_ids"],
-                            "action": "both",
-                            "code_changes": f"⚠️ [GÜVENLİK/KALİTE BLOKAJI]\n{unit.get('review_comment', '')}",
-                            "review_passed": False
-                        }
-                    else:
-                        jira_context = {
-                            "jira_ids": unit["jira_ids"],
-                            "action": "both",
-                            "code_changes": unit.get("code_changes", ""),
-                            "review_passed": True
-                        }
-
-                    if dry_run:
-                        # Web API modu: Jira'ya yazmadan planı kaydet,
-                        # approve endpoint'i sonradan gercek yazmayi yapar.
-                        context.setdefault("jira_planned", []).append(
-                            {
-                                "commit_sha": unit.get("sha"),
-                                "short_sha": unit.get("short_sha"),
-                                "jira_ids": list(unit["jira_ids"]),
-                                "review_passed": unit_review_passed,
-                                "code_changes": jira_context["code_changes"],
-                                "action": "both",
-                            }
-                        )
-                        logger.info(
-                            f"🧪 dry-run: {unit['jira_ids']} icin Jira yazmasi atlandi, plan kaydedildi."
-                        )
-                    else:
-                        await self.jira_worker.run("Update", context=jira_context)
-
-                if not any_ticket_processed:
-                    logger.info(
-                        "ℹ️ jira_agent planlanmıştı ancak hiçbir commit'te Jira bilet ID'si "
-                        "bulunamadığı için bu adım atlandı (regex ve LLM fallback ikisi de sonuçsuz kaldı)."
-                    )
-
-            elif step == "jira_agent" and not context.get("commit_units"):
-                logger.info(
-                    "ℹ️ jira_agent planlanmıştı ancak hiçbir Jira bilet ID'si bulunamadığı "
-                    "için bu adım atlandı (regex ve LLM fallback ikisi de sonuçsuz kaldı)."
-                )
-
-            # 4. REPORTER ADIMI (sadece review'dan geçen commit'leri raporlar)
-            elif step == "reporter_agent" and context.get("raw_commits"):
-                print(f"[Orchestrator] ⚙️ LLM Kararı: reporter_agent tetikleniyor...")
-
-                if context.get("commit_units"):
-                    blocked_shas = {
-                        u["sha"] for u in context["commit_units"] if u.get("review_status") == "FAILED"
-                    }
-                    reportable_commits = [c for c in context["raw_commits"] if c.get("sha") not in blocked_shas]
-                else:
-                    reportable_commits = context["raw_commits"]
-
-                if not reportable_commits:
-                    logger.info("ℹ️ Tüm commit'ler bloklandığı için raporlanacak onaylı değişiklik yok.")
-                    context["final_report"] = "Tüm değişiklikler güvenlik/kalite blokajı nedeniyle raporlanamadı."
-                else:
-                    reporter_context = {"raw_commits": reportable_commits}
-                    reporter_result = await self.reporter_worker.run("Report", context=reporter_context)
-                    context["final_report"] = reporter_result.get("generated_report")
-
+        logger.info("Sef Ajan: LangGraph akisi baslatiliyor (dry_run=%s)", dry_run)
+        gh = github_context or {}
+        workers = {
+            "llm": self.llm,
+            "github": self.github_worker,
+            "reviewer": self.reviewer_worker,
+            "jira": self.jira_worker,
+            "reporter": self.reporter_worker,
+            "enabled": {
+                "github": registry.is_enabled("github_agent"),
+                "reviewer": registry.is_enabled("reviewer_agent"),
+                "jira": registry.is_enabled("jira_agent"),
+                "reporter": registry.is_enabled("reporter_agent"),
+            },
+            "plan_prompt": registry.system_prompt("orchestrator"),
+        }
+        app = build_graph(workers)
+        final = await app.ainvoke({
+            "user_goal": user_goal,
+            "dry_run": dry_run,
+            "github_context": {
+                "owner": gh.get("owner") or self.github_worker.default_owner,
+                "repo": gh.get("repo", settings.GITHUB_REPO),
+                "count": gh.get("count", 3),
+            },
+            "review_passed": True,
+            "jira_planned": [],
+        })
+        review_passed = final.get("review_passed", True)
         return {
             "status": "success" if review_passed else "partially_blocked",
-            "final_report": context.get("final_report", "Güvenlik blokajı nedeniyle sürüm bülteni raporu üretilmedi."),
-            "commit_units": context.get("commit_units", []),
-            "jira_planned": context.get("jira_planned", []),
+            "final_report": final.get("final_report", "Guvenlik blokaji nedeniyle surum bulteni raporu uretilmedi."),
+            "commit_units": final.get("commit_units", []),
+            "jira_planned": final.get("jira_planned", []),
             "dry_run": dry_run,
         }
 
@@ -219,5 +125,5 @@ class OrchestratorAgent(BaseAgent):
             dry_run = True
         return await self.route_and_execute(task_description, dry_run=dry_run, github_context=github_context)
 
-    def get_tool_schemas(self) -> List[Dict[str, Any]]:
+    def get_tool_schemas(self):
         return []

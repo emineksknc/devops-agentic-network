@@ -173,7 +173,8 @@ class JiraAgent(BaseAgent):
                     
                 ai_comment_summary = await self.llm.generate_response(
                     "Sen teknik bir DevOps asistanısın. Sadece istenen teknik yorumu dönersin.",
-                    comment_prompt
+                    comment_prompt,
+                    trace_name="jira.summarize",
                 )
             except Exception as e:
                 logger.warning(f"⚠️ LLM analizi başarısız oldu, fallback şablonu kullanılacak. Hata: {e}")

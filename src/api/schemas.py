@@ -10,6 +10,7 @@ class RunCreate(BaseModel):
     count: int = Field(default=3, ge=1, le=20)
     github_conn_id: str = ""
     jira_conn_id: str = ""
+    llm_conn_id: str = ""
 
 
 class RunOut(BaseModel):
@@ -87,6 +88,8 @@ class ConnectionIn(BaseModel):
     email: str = ""
     token: str = ""
     project_key: str = ""
+    provider: str = ""
+    model: str = ""
     is_default: bool = False
 
 

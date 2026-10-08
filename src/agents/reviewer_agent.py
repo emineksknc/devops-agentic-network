@@ -9,9 +9,12 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ReviewerAgent")
 
 class ReviewerAgent(BaseAgent):
-    def __init__(self, name: str = "ReviewerAgent", model_client: Any = None):
+    DEFAULT_SYSTEM_PROMPT = "Sen sadece JSON formatında çıktı üreten profesyonel bir kod denetçisisin."
+
+    def __init__(self, name: str = "ReviewerAgent", model_client: Any = None, system_prompt: str = None, **kwargs):
         super().__init__(name, model_client)
         self.llm = model_client or LLMClient()
+        self.system_prompt = system_prompt or self.DEFAULT_SYSTEM_PROMPT
 
     async def run(self, task_description: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
         context = context or {}
@@ -56,9 +59,10 @@ class ReviewerAgent(BaseAgent):
 
         try:
             llm_response = await self.llm.generate_response(
-                "Sen sadece JSON formatında çıktı üreten profesyonel bir kod denetçisisin.",
+                self.system_prompt,
                 review_prompt,
-                response_format="json"
+                response_format="json",
+                trace_name="reviewer.analyze",
             )
 
             # Ollama bazen markdown kod blokları (```json ... ```) içine alabilir, onları temizleyelim

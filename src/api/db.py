@@ -77,8 +77,20 @@ def init_db() -> None:
                 email TEXT NOT NULL DEFAULT '',
                 token TEXT NOT NULL DEFAULT '',
                 project_key TEXT NOT NULL DEFAULT '',
+                provider TEXT NOT NULL DEFAULT '',
+                model TEXT NOT NULL DEFAULT '',
                 is_default INTEGER NOT NULL DEFAULT 0
             );
+            -- Ajan ozellestirme: ac/kapa + system prompt override
+            CREATE TABLE IF NOT EXISTS agent_configs (
+                agent_name TEXT PRIMARY KEY,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                system_prompt TEXT NOT NULL DEFAULT ''
+            );
+            CREATE INDEX IF NOT EXISTS idx_units_run ON commit_units(run_id);
+            CREATE INDEX IF NOT EXISTS idx_units_author ON commit_units(author);
+            CREATE INDEX IF NOT EXISTS idx_actions_run ON jira_actions(run_id);
+            CREATE INDEX IF NOT EXISTS idx_actions_ticket ON jira_actions(ticket_id);
             """
         )
         _migrate(conn)
@@ -92,8 +104,9 @@ def _migrate(conn: sqlite3.Connection) -> None:
         return {r["name"] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
 
     for table, wanted in {
-        "runs": ["github_conn_id", "jira_conn_id"],
+        "runs": ["github_conn_id", "jira_conn_id", "llm_conn_id"],
         "policies": ["github_conn_id", "jira_conn_id"],
+        "connections": ["provider", "model"],
     }.items():
         have = cols(table)
         for col in wanted:
@@ -117,6 +130,13 @@ def _seed_default_connections(conn: sqlite3.Connection) -> None:
         " VALUES (?,?,?,?,?,?,?,?,?)",
         ("jira-default", "jira", "Default Jira", settings.JIRA_DOMAIN,
          "", settings.JIRA_USER_EMAIL, settings.JIRA_API_TOKEN, settings.JIRA_PROJECT_KEY, 1),
+    )
+    conn.execute(
+        "INSERT INTO connections (id, kind, name, base_url, owner, email, token, project_key, provider, model, is_default)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+        ("llm-default", "llm", "Default LLM", getattr(settings, "OLLAMA_HOST", "http://localhost:11434"),
+         "", "", getattr(settings, "LLM_API_KEY", ""), "",
+         getattr(settings, "LLM_PROVIDER", "ollama"), settings.LLM_MODEL, 1),
     )
 
 

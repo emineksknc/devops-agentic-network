@@ -14,9 +14,15 @@ class Settings(BaseSettings):
     
     # 🎯 EKSİK OLAN ALAN BURASIYDI: Pydantic'e bu alanı tanıtıyoruz
     LLM_MODEL: str = "llama3"
+    LLM_PROVIDER: str = "ollama"
     OLLAMA_HOST: str = "http://localhost:11434"
 
     DAN_DB_PATH: str = "data/dan.db"
+
+    # LangFuse gozlemlenebilirlik (bos birakilirsa tracing no-op olur)
+    LANGFUSE_SECRET_KEY: str = "mock_langfuse_secret"
+    LANGFUSE_PUBLIC_KEY: str = "mock_langfuse_public"
+    LANGFUSE_HOST: str = "https://cloud.langfuse.com"
 
     class Config:
         env_file = ".env"

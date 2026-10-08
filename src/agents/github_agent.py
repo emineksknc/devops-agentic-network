@@ -152,7 +152,7 @@ class GitHubAgent(BaseAgent):
         )
 
         try:
-            llm_response = await self.llm.generate_response(system_prompt, user_prompt)
+            llm_response = await self.llm.generate_response(system_prompt, user_prompt, trace_name="github.extract_tickets")
             clean_json = llm_response.replace("```json", "").replace("```", "").strip()
             parsed = json.loads(clean_json)
             candidate_ids = [str(i).upper() for i in parsed.get("jira_ids", []) if isinstance(i, (str, int))]

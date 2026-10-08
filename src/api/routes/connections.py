@@ -19,7 +19,10 @@ def _to_out(r) -> ConnectionOut:
         id=r["id"], name=r["name"], kind=r["kind"], base_url=r["base_url"] or "",
         owner=r["owner"] or "", email=r["email"] or "",
         token=MASKED if r["token"] else "",
-        project_key=r["project_key"] or "", is_default=bool(r["is_default"]),
+        project_key=r["project_key"] or "",
+        provider=r["provider"] or "" if "provider" in r.keys() else "",
+        model=r["model"] or "" if "model" in r.keys() else "",
+        is_default=bool(r["is_default"]),
     )
 
 
@@ -40,12 +43,14 @@ async def create_connection(body: ConnectionIn) -> ConnectionOut:
         if body.is_default:
             conn.execute("UPDATE connections SET is_default=0 WHERE kind=?", (body.kind,))
         conn.execute(
-            "INSERT INTO connections (id, kind, name, base_url, owner, email, token, project_key, is_default)"
-            " VALUES (?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO connections (id, kind, name, base_url, owner, email, token, project_key, provider, model, is_default)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
             (conn_id, body.kind, body.name, body.base_url, body.owner, body.email,
-             body.token, body.project_key, int(body.is_default)),
+             body.token, body.project_key, body.provider, body.model, int(body.is_default)),
         )
-    return ConnectionOut(id=conn_id, **body.model_dump())
+    out = body.model_dump()
+    out["token"] = MASKED if body.token else ""
+    return ConnectionOut(id=conn_id, **out)
 
 
 @router.put("/{conn_id}", response_model=ConnectionOut)
@@ -60,9 +65,9 @@ async def update_connection(conn_id: str, body: ConnectionIn) -> ConnectionOut:
             conn.execute("UPDATE connections SET is_default=0 WHERE kind=?", (r["kind"],))
         conn.execute(
             """UPDATE connections SET name=?, base_url=?, owner=?, email=?, token=?,
-               project_key=?, is_default=? WHERE id=?""",
+               project_key=?, provider=?, model=?, is_default=? WHERE id=?""",
             (body.name, body.base_url, body.owner, body.email, token,
-             body.project_key, int(body.is_default), conn_id),
+             body.project_key, body.provider, body.model, int(body.is_default), conn_id),
         )
     out = body.model_dump()
     out["token"] = MASKED if token else ""
