@@ -40,3 +40,13 @@ def test_invalid_status_retries():
     ]))
     out = asyncio.run(r.run("t", context={"code_changes": DIFF}))
     assert out["review_status"] == "PASSED"
+
+
+def test_prose_wrapped_json_is_parsed():
+    # qwen tarzi: aciklama + JSON karisimi
+    r = ReviewerAgent(model_client=FakeLLM([
+        'Analiz tamamlandi. {"review_status": "PASSED", "review_comment": "Sabit degisikligi."} tesekkurler.',
+    ]))
+    out = asyncio.run(r.run("t", context={"code_changes": DIFF}))
+    assert out["review_status"] == "PASSED"
+    assert "Sabit" in out["review_comment"]

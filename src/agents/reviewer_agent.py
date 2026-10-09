@@ -8,6 +8,34 @@ from src.core.llm_client import LLMClient
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ReviewerAgent")
 
+
+def _parse_review_response(raw: str):
+    """Katmanli parse: duz JSON -> {...} blogu -> alan regex -> anahtar kelime.
+    Doner: (status | None, comment, obj)."""
+    text = (raw or "").replace("```json", "").replace("```", "").strip()
+    try:
+        obj = json.loads(text)
+        return str(obj.get("review_status", "") or "").upper(), (obj.get("review_comment") or "").strip(), obj
+    except Exception:
+        pass
+    m = re.search(r"\{.*\}", text, re.DOTALL)
+    if m:
+        try:
+            obj = json.loads(m.group(0))
+            return str(obj.get("review_status", "") or "").upper(), (obj.get("review_comment") or "").strip(), obj
+        except Exception:
+            pass
+    m = re.search(r"review_status['\"]?\s*[:=]\s*['\"]?(PASSED|FAILED)", text, re.IGNORECASE)
+    if m:
+        return m.group(1).upper(), text[:300], {}
+    up = text.upper()
+    if "FAILED" in up and "PASSED" not in up:
+        return "FAILED", text[:300], {}
+    if "PASSED" in up and "FAILED" not in up:
+        return "PASSED", text[:300], {}
+    return None, "", {}
+
+
 class ReviewerAgent(BaseAgent):
     DEFAULT_SYSTEM_PROMPT = "Sen sadece JSON formatında çıktı üreten profesyonel bir kod denetçisisin."
 
@@ -19,9 +47,9 @@ class ReviewerAgent(BaseAgent):
     async def run(self, task_description: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
         context = context or {}
         code_changes = (
-            context.get("code_changes") or 
-            context.get("patch") or 
-            context.get("diff") or 
+            context.get("code_changes") or
+            context.get("patch") or
+            context.get("diff") or
             ""
         )
 
@@ -73,6 +101,7 @@ class ReviewerAgent(BaseAgent):
         )
 
         last_raw = ""
+        status, affected_file, affected_symbol, raw_comment = "FAILED", None, None, ""
         for attempt in (1, 2):  # bozuk/eksik ciktiya tek retry
             try:
                 llm_response = await self.llm.generate_response(
@@ -85,16 +114,11 @@ class ReviewerAgent(BaseAgent):
                 )
                 last_raw = llm_response
 
-                # Ollama bazen markdown kod blokları (```json ... ```) içine alabilir, onları temizleyelim
-                clean_json = llm_response.replace("```json", "").replace("```", "").strip()
-                review_result = json.loads(clean_json)
-
-                status = str(review_result.get("review_status", "")).upper()
+                status, raw_comment, review_result = _parse_review_response(llm_response)
                 if status not in ("PASSED", "FAILED"):
-                    raise ValueError(f"gecersiz review_status: {status!r}")
+                    raise ValueError(f"anlasilamayan yanit: {last_raw[:120]!r}")
                 affected_file = review_result.get("affected_file")
                 affected_symbol = review_result.get("affected_symbol")
-                raw_comment = (review_result.get("review_comment") or "").strip()
                 # Gerekcesiz FAILED yasak: yorumu bossa retry
                 if status == "FAILED" and not raw_comment:
                     raise ValueError("FAILED gerekcesiz donduruldu")
@@ -109,7 +133,6 @@ class ReviewerAgent(BaseAgent):
                         "Model gecerli bir denetim uretemedi (2 deneme). "
                         "Guvenlik nedeniyle manuel incelemeye dusuruldu."
                     )
-        # (for/else YOK: basarisizlik zaten except icinde islenir, break basari demek)
 
         if not raw_comment:
             raw_comment = "Kod analizi başarıyla tamamlandı."
