@@ -16,7 +16,14 @@ from src.api.schemas import HealthOut
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("dan.api")
 
-FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend" / "web"
+ROOT_DIR = Path(__file__).resolve().parents[2]
+DIST_DIR = ROOT_DIR / "frontend-react" / "dist"
+LEGACY_DIR = ROOT_DIR / "frontend" / "web"
+# React build varsa onu serve et, yoksa eski statik arayuze dus
+USE_DIST = (DIST_DIR / "index.html").exists()
+FRONTEND_DIR = DIST_DIR if USE_DIST else LEGACY_DIR
+
+SPA_PAGES = {"runs", "run-detail", "policies", "audit", "agents", "developers", "settings"}
 
 
 @asynccontextmanager
@@ -56,14 +63,29 @@ if FRONTEND_DIR.exists():
     async def _index():
         return FileResponse(FRONTEND_DIR / "index.html")
 
-    @app.get("/{page}", include_in_schema=False)
-    async def _page(page: str):
-        name = page[:-5] if page.endswith(".html") else page
-        candidate = FRONTEND_DIR / f"{name}.html"
-        if name in {"runs", "run-detail", "policies", "audit", "agents", "developers", "settings"} and candidate.exists():
-            return FileResponse(candidate)
-        index = FRONTEND_DIR / "index.html"
-        return FileResponse(index)
+    if USE_DIST:
+        # React SPA: sayfa route'lari index'e duser, ic routing client'ta
+        @app.get("/{full_path:path}", include_in_schema=False)
+        async def _spa(full_path: str):
+            if full_path.startswith("assets/"):
+                candidate = DIST_DIR / full_path
+                if candidate.is_file():
+                    return FileResponse(candidate)
+            name = full_path.split("/")[0]
+            name = name[:-5] if name.endswith(".html") else name
+            if name in SPA_PAGES:
+                return FileResponse(DIST_DIR / "index.html")
+            return FileResponse(DIST_DIR / "index.html")
+    else:
+
+        @app.get("/{page}", include_in_schema=False)
+        async def _page(page: str):
+            name = page[:-5] if page.endswith(".html") else page
+            candidate = FRONTEND_DIR / f"{name}.html"
+            if name in SPA_PAGES and candidate.exists():
+                return FileResponse(candidate)
+            index = FRONTEND_DIR / "index.html"
+            return FileResponse(index)
 
     # Sablon ici *.html linkler + dogrudan dosya erisimi icin statik fallback (en sonda)
     app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
