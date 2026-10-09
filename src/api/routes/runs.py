@@ -64,6 +64,7 @@ async def execute_run(
         orch = OrchestratorAgent(connections={
             "github": gh_conn, "jira": ji_conn, "llm": ll_conn,
             "gates": gates, "transitions": transitions,
+            "ticket_project": policy.get("jira_project") or "",
         })
         gh = _parse_repo(repo)
         gh["count"] = count

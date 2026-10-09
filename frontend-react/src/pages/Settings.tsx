@@ -211,8 +211,12 @@ export function Settings() {
               <Field label="E-posta">
                 <input className="input" value={form.email} onChange={(e) => set("email", e.target.value)} />
               </Field>
-              <Field label="Proje anahtarı">
-                <input className="input" value={form.project_key} onChange={(e) => set("project_key", e.target.value)} />
+              <Field label="Proje anahtarı (örn. TTA)">
+                <input
+                  className="input font-mono"
+                  value={form.project_key}
+                  onChange={(e) => set("project_key", e.target.value)}
+                />
               </Field>
             </>
           )}

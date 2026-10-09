@@ -51,6 +51,8 @@ class OrchestratorAgent(BaseAgent):
         jira_conn = conns.get("jira") or {}
         llm_conn = conns.get("llm") or {}
         self._connections = {"github": github_conn, "jira": jira_conn, "llm": llm_conn}
+        # Politika projesi (orn. TTA) baglanti varsayilanini ezer
+        ticket_project = conns.get("ticket_project") or jira_conn.get("project_key") or ""
         gates = (conns.get("gates") or {})
         self._gates = {
             "plan_on_fail": gates.get("plan_on_fail", True),
@@ -62,8 +64,10 @@ class OrchestratorAgent(BaseAgent):
 
         # Tum alt ajanlar run'in LLM baglantisini paylasir (provider secimi tek noktada)
         self.github_worker = registry.build("github_agent", connection=github_conn, model_client=self.llm)
-        # Bilet anahtari Jira baglantisindan gelir (cok projeli kurumlar)
-        if jira_conn.get("project_key"):
+        # Bilet anahtari: politika projesi > Jira baglantisi (cok projeli kurumlar)
+        if ticket_project:
+            self.github_worker.project_key = ticket_project
+        elif jira_conn.get("project_key"):
             self.github_worker.project_key = jira_conn["project_key"]
         self.jira_worker = registry.build("jira_agent", connection=jira_conn, model_client=self.llm)
         self.reporter_worker = registry.build(
