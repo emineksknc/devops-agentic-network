@@ -23,7 +23,7 @@ def test_reasonless_failed_retries_to_passed():
     ]))
     out = asyncio.run(r.run("t", context={"code_changes": DIFF}))
     assert out["review_status"] == "PASSED"
-    assert r.calls == 2
+    assert r.llm.calls == 2
 
 
 def test_double_garbage_is_honest_fail_closed():
