@@ -61,10 +61,19 @@ async def execute_run(
             (1 if eff_dry else 0, gh_conn.get("id", ""), ji_conn.get("id", ""), ll_conn.get("id", ""), run_id),
         )
     try:
+        from datetime import datetime, timezone as _tz
+
+        events: list = []
+
+        def _emit(node: str, message: str, level: str = "info") -> None:
+            events.append({"ts": datetime.now(_tz.utc).isoformat(), "node": node,
+                           "message": message, "level": level})
+
         orch = OrchestratorAgent(connections={
             "github": gh_conn, "jira": ji_conn, "llm": ll_conn,
             "gates": gates, "transitions": transitions,
             "ticket_project": policy.get("jira_project") or "",
+            "emit": _emit,
         })
         gh = _parse_repo(repo)
         gh["count"] = count
@@ -101,9 +110,21 @@ async def execute_run(
             status = result.get("status", "success")
             if planned:
                 status = "pending_approval"
+            gh_err = result.get("github_error", "")
+            if not units and not planned:
+                # Bos run = basari DEGIL: ne oldugu acik yazilir
+                status = "failed"
+                err_text = gh_err or "GitHub'dan hic commit alinamadi (repo adi/token/scope kontrol et)."
+            else:
+                err_text = gh_err if gh_err and not units else ""
+            for ev in events:
+                conn.execute(
+                    "INSERT INTO run_events (run_id, created_at, node, level, message) VALUES (?,?,?,?,?)",
+                    (run_id, ev["ts"], ev["node"], ev["level"], ev["message"][:2000]),
+                )
             conn.execute(
-                "UPDATE runs SET status=?, final_report=? WHERE id=?",
-                (status, result.get("final_report", ""), run_id),
+                "UPDATE runs SET status=?, final_report=?, error=? WHERE id=?",
+                (status, result.get("final_report", ""), err_text, run_id),
             )
     except Exception as e:  # arka plan gorevi hicbir zaman sessizce olmemeli
         logger.exception("run %s basarisiz", run_id)
@@ -160,6 +181,7 @@ async def get_run(run_id: str) -> RunDetailOut:
             raise HTTPException(404, "run bulunamadi")
         units = conn.execute("SELECT * FROM commit_units WHERE run_id=? ORDER BY id", (run_id,)).fetchall()
         actions = conn.execute("SELECT * FROM jira_actions WHERE run_id=? ORDER BY id", (run_id,)).fetchall()
+        events = conn.execute("SELECT * FROM run_events WHERE run_id=? ORDER BY id", (run_id,)).fetchall()
     return RunDetailOut(
         run_id=r["id"], repo=r["repo"], status=r["status"], dry_run=bool(r["dry_run"]),
         created_at=r["created_at"], final_report=r.get("final_report"), error=r.get("error"),
@@ -181,6 +203,11 @@ async def get_run(run_id: str) -> RunDetailOut:
                 skipped_reason=a["skipped_reason"],
             )
             for a in actions
+        ],
+        events=[
+            RunEventOut(created_at=e["created_at"], node=e["node"] or "",
+                        level=e["level"] or "info", message=e["message"] or "")
+            for e in events
         ],
     )
 

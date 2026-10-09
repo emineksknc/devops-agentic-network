@@ -104,6 +104,7 @@ class OrchestratorAgent(BaseAgent):
             "plan_prompt": registry.system_prompt("orchestrator"),
             "gates": getattr(self, "_gates", {"plan_on_fail": True, "plan_on_pass": False}),
             "transitions": getattr(self, "_transitions", {"pass": "In Review", "fail": "Blocked"}),
+            "emit": (self._connections.get("emit") if isinstance(self._connections, dict) else None) or (lambda *a, **k: None),
         }
         app = build_graph(workers)
         final = await app.ainvoke({

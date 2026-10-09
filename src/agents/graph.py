@@ -35,6 +35,7 @@ def build_graph(workers: Dict[str, Any]):
     # Policy kapilari: hangi sonuc dogrudan yazilir, hangisi onaya duser
     gates = workers.get("gates", {"plan_on_fail": True, "plan_on_pass": False})
     transitions = workers.get("transitions", {"pass": "In Review", "fail": "Blocked"})
+    emit = workers.get("emit") or (lambda *a, **k: None)
 
     async def plan_node(state: FlowState) -> Dict[str, Any]:
         logger.info("Graf dugumu: plan")
@@ -66,10 +67,12 @@ def build_graph(workers: Dict[str, Any]):
             steps = plan_json.get("plan", [])
             reason = plan_json.get("reason", "")
             logger.info("LLM plani parse edildi: %s", steps)
+            emit("plan", f"Plan: {', '.join(steps)} — {reason}")
         except Exception as e:
             logger.warning("LLM gecerli JSON donmedi (%s). Fallback akis.", e)
             steps = ["github_agent", "reviewer_agent", "jira_agent", "reporter_agent"]
             reason = "fallback"
+            emit("plan", "LLM plani okunamadi, varsayilan akis kullanildi.", "warning")
         # Kapali ajanlari plandan dusur
         active = {"github_agent": "github", "reviewer_agent": "reviewer",
                   "jira_agent": "jira", "reporter_agent": "reporter"}
@@ -87,11 +90,20 @@ def build_graph(workers: Dict[str, Any]):
         print("[Orkestrator] Graf dugumu: github_agent")
         res = await github_worker.run("Scan", context=state.get("github_context", {}))
         data = res.get("extracted_data", {})
-        return {"commit_units": data.get("commit_units", []), "raw_commits": data.get("raw_commits", [])}
+        units = data.get("commit_units", [])
+        gh_err = getattr(github_worker, "last_error", "")
+        if gh_err:
+            emit("github", f"Hata: {gh_err}", "error")
+        else:
+            emit("github", f"{len(units)} commit incelendi.")
+        return {"commit_units": units, "raw_commits": data.get("raw_commits", []),
+                "github_error": gh_err}
 
     async def reviewer_node(state: FlowState) -> Dict[str, Any]:
         units = state.get("commit_units", []) or []
         if "reviewer_agent" not in state.get("plan", []) or not units:
+            if "reviewer_agent" not in state.get("plan", []):
+                emit("reviewer", "Planda yok, atlandi.", "warning")
             return {"review_passed": True}
         print("[Orkestrator] Graf dugumu: reviewer_agent")
         for unit in units:
@@ -102,6 +114,8 @@ def build_graph(workers: Dict[str, Any]):
             r = await reviewer_worker.run("Review code quality", context={"code_changes": unit["code_changes"]})
             unit["review_status"] = r.get("review_status", "FAILED")
             unit["review_comment"] = r.get("review_comment", "")
+            emit("reviewer", f"{unit.get('short_sha')}: {unit['review_status']}",
+                 "error" if unit["review_status"] == "FAILED" else "info")
             if unit["review_status"] == "FAILED":
                 logger.warning("Commit %s kritik risk, ilgili biletler kilitlenecek.", unit.get("short_sha"))
         blocked = any(u.get("review_status") == "FAILED" for u in units)
@@ -136,16 +150,21 @@ def build_graph(workers: Dict[str, Any]):
                                 "jira_ids": list(unit["jira_ids"]), "review_passed": ok,
                                 "code_changes": ctx["code_changes"], "action": "both",
                                 "target_status": target})
+                emit("jira", f"{unit['jira_ids']} beklemeye alindi (hedef: {target}).")
                 logger.info("plan modunda: %s icin Jira yazmasi bekletiliyor.", unit["jira_ids"])
             else:
                 await jira_worker.run("Update", context=ctx)
+                emit("jira", f"{unit['jira_ids']} yazildi (hedef: {target}).")
         if not any_ticket:
+            emit("jira", "Bilet ID'si bulunamadi, adim atlandi.", "warning")
             logger.info("jira_agent planlanmisti ama bilet ID'si yok, atlandi.")
         return {"jira_planned": planned}
 
     async def reporter_node(state: FlowState) -> Dict[str, Any]:
         raw_commits = state.get("raw_commits", []) or []
         if "reporter_agent" not in state.get("plan", []) or not raw_commits:
+            if not raw_commits and "reporter_agent" in state.get("plan", []):
+                return {"final_report": "Analiz edilecek commit bulunamadı (GitHub bos/hatali dondu)."}
             return {}
         print("[Orkestrator] Graf dugumu: reporter_agent")
         units = state.get("commit_units", []) or []
@@ -153,8 +172,10 @@ def build_graph(workers: Dict[str, Any]):
         reportable = [c for c in raw_commits if c.get("sha") not in blocked_shas]
         if not reportable:
             logger.info("Tum commit'ler bloklu, raporlanacak degisiklik yok.")
+            emit("reporter", "Tum commit'ler bloklu, bulten uretilmedi.", "warning")
             return {"final_report": "Tum degisiklikler guvenlik/kalite blokaji nedeniyle raporlanamadi."}
         r = await reporter_worker.run("Report", context={"raw_commits": reportable})
+        emit("reporter", f"{len(reportable)} committen bulten uretildi.")
         return {"final_report": r.get("generated_report")}
 
     graph = StateGraph(FlowState)

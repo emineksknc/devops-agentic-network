@@ -22,6 +22,7 @@ class GitHubAgent(BaseAgent):
         self.token = c.get("token") if explicit else (c.get("token") or settings.GITHUB_TOKEN)
         self.default_owner = c.get("owner") or settings.GITHUB_OWNER
         self.project_key = c.get("project_key") or settings.JIRA_PROJECT_KEY
+        self.last_error = ""
         self.register_tool("fetch_commits", self.fetch_commits)
         self.register_tool("fetch_commit_diff", self.fetch_commit_diff)
         self.register_tool("extract_jira_ids", self.extract_jira_ids)
@@ -58,10 +59,13 @@ class GitHubAgent(BaseAgent):
                             "message": c.get("commit", {}).get("message", ""),
                             "author": c.get("commit", {}).get("author", {}).get("name", "Unknown")
                         })
+                    self.last_error = ""
                     return parsed_commits
                 else:
+                    self.last_error = f"GitHub API {response.status_code}: {response.text[:200]}"
                     logger.error(f"❌ GitHub API Hatası ({response.status_code}): {response.text}")
         except Exception as e:
+            self.last_error = f"GitHub baglanti hatasi: {str(e)[:200]}"
             logger.error(f"❌ GitHub API Bağlantı Hatası: {str(e)}")
         
         return []

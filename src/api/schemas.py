@@ -46,6 +46,13 @@ class JiraActionOut(BaseModel):
     skipped_reason: Optional[str] = None
 
 
+class RunEventOut(BaseModel):
+    created_at: str
+    node: str
+    level: str = "info"
+    message: str
+
+
 class RunDetailOut(BaseModel):
     run_id: str
     repo: str
@@ -56,6 +63,7 @@ class RunDetailOut(BaseModel):
     error: Optional[str] = None
     commit_units: list[CommitUnitOut] = []
     jira_actions: list[JiraActionOut] = []
+    events: list[RunEventOut] = []
 
 
 class ApproveIn(BaseModel):

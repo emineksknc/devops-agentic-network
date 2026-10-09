@@ -97,6 +97,16 @@ def init_db() -> None:
                 enabled INTEGER NOT NULL DEFAULT 1,
                 system_prompt TEXT NOT NULL DEFAULT ''
             );
+            -- Run olay gunlugu: dugum dugum ne yapildi (UI timeline)
+            CREATE TABLE IF NOT EXISTS run_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_id TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                node TEXT NOT NULL DEFAULT '',
+                level TEXT NOT NULL DEFAULT 'info',
+                message TEXT NOT NULL DEFAULT ''
+            );
+            CREATE INDEX IF NOT EXISTS idx_events_run ON run_events(run_id);
             -- Global anahtar-deger ayarlar (redaksiyon vb.)
             CREATE TABLE IF NOT EXISTS app_settings (
                 key TEXT PRIMARY KEY,

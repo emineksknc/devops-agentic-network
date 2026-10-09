@@ -66,11 +66,19 @@ export interface JiraAction {
   skipped_reason?: string | null;
 }
 
+export interface RunEvent {
+  created_at: string;
+  node: string;
+  level: string;
+  message: string;
+}
+
 export interface RunDetail extends Run {
   final_report?: string | null;
   error?: string | null;
   commit_units: CommitUnit[];
   jira_actions: JiraAction[];
+  events: RunEvent[];
 }
 
 export interface Policy {

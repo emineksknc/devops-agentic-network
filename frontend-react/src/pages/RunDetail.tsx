@@ -78,6 +78,37 @@ export function RunDetail() {
         <div className="text-xs whitespace-pre-wrap text-muted">{run.final_report || run.error || "—"}</div>
       </div>
 
+      {run.error && (
+        <div className="card p-4" style={{ borderColor: "#ef4444" }}>
+          <h3 className="text-sm font-semibold mb-1" style={{ color: "#ef4444" }}>
+            Hata
+          </h3>
+          <div className="text-xs whitespace-pre-wrap text-muted">{run.error}</div>
+        </div>
+      )}
+
+      {run.events && run.events.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold">Olay Günlüğü ({run.events.length})</h3>
+          <div className="card p-4 space-y-1.5 max-h-72 overflow-auto">
+            {run.events.map((e, i) => (
+              <div key={i} className="flex gap-2 text-xs">
+                <span className="font-mono shrink-0" style={{ color: "#818cf8" }}>
+                  {e.node || "sistem"}
+                </span>
+                <span
+                  className="shrink-0 w-2 h-2 rounded-full mt-1"
+                  style={{
+                    background: e.level === "error" ? "#ef4444" : e.level === "warning" ? "#f59e0b" : "#10b981",
+                  }}
+                />
+                <span className="text-muted">{e.message}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="space-y-2">
         <h3 className="text-sm font-semibold">Commitler ({run.commit_units.length})</h3>
         {run.commit_units.map((u) => (
