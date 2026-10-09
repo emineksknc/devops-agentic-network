@@ -39,6 +39,13 @@ export function Policies() {
 
   const connName = (id: string) => conns.find((c) => c.id === id)?.name || "—";
 
+  function openNew() {
+    setEditing({ ...BLANK });
+  }
+  function openEdit(p: Policy) {
+    setEditing({ ...p });
+  }
+
   async function save(p: Policy) {
     try {
       await api.post("/api/policies", p);
@@ -73,7 +80,7 @@ export function Policies() {
     <>
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Politikalar</h1>
-        <button className="btn-primary" onClick={() => setEditing({ ...BLANK })}>
+        <button className="btn-primary" onClick={openNew}>
           + Yeni Politika
         </button>
       </div>
@@ -89,7 +96,7 @@ export function Policies() {
                   <button className="text-xs text-accent-soft" onClick={() => test(p)}>
                     Test Et
                   </button>
-                  <button className="text-xs text-accent-soft" onClick={() => setEditing({ ...p })}>
+                  <button className="text-xs text-accent-soft" onClick={() => openEdit(p)}>
                     Düzenle
                   </button>
                   <button className="text-xs text-bad" onClick={() => remove(p.repo)}>
@@ -115,13 +122,7 @@ export function Policies() {
         </div>
       )}
       {editing && (
-        <PolicyModal
-          value={editing}
-          conns={conns}
-          onClose={() => setEditing(null)}
-          onSave={save}
-          onChange={setEditing}
-        />
+        <PolicyModal value={editing} conns={conns} onClose={() => setEditing(null)} onSave={save} onChange={setEditing} />
       )}
     </>
   );
@@ -140,6 +141,46 @@ function PolicyModal({
   onSave: (p: Policy) => void;
   onChange: (p: Policy) => void;
 }) {
+  const [ghRepos, setGhRepos] = useState<string[]>([]);
+  const [ghHint, setGhHint] = useState("");
+  const [projects, setProjects] = useState<{ key: string; name: string }[]>([]);
+  const [pjHint, setPjHint] = useState("");
+  const [customRepo, setCustomRepo] = useState(false);
+
+  // Baglanti secimi degisince listeleri O baglantidan doldur
+  useEffect(() => {
+    let alive = true;
+    setGhRepos([]);
+    setGhHint("");
+    api
+      .get<{ full_name: string }[]>(`/api/github/repos?conn_id=${encodeURIComponent(p.github_conn_id)}`)
+      .then((r) => {
+        if (alive) setGhRepos(r.map((x) => x.full_name));
+      })
+      .catch((e) => {
+        if (alive) setGhHint((e as Error).message);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [p.github_conn_id]);
+
+  useEffect(() => {
+    let alive = true;
+    setProjects([]);
+    setPjHint("");
+    api
+      .get<{ key: string; name: string }[]>(`/api/jira/projects?conn_id=${encodeURIComponent(p.jira_conn_id)}`)
+      .then((r) => {
+        if (alive) setProjects(r);
+      })
+      .catch((e) => {
+        if (alive) setPjHint((e as Error).message);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [p.jira_conn_id]);
   const set = (k: keyof Policy, v: string | boolean) => onChange({ ...p, [k]: v });
   const tgl = (k: "auto_write_pass" | "auto_write_fail" | "require_approval" | "dry_run_default", label: string) => (
     <label className="flex items-center gap-2 text-xs text-muted">
@@ -156,11 +197,68 @@ function PolicyModal({
       ));
   return (
     <Modal title="Politika" onClose={onClose}>
-      <Field label="Repo (org/repo)">
-        <input className="input font-mono" value={p.repo} onChange={(e) => set("repo", e.target.value)} />
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="GitHub bağlantısı">
+          <select className="input" value={p.github_conn_id} onChange={(e) => set("github_conn_id", e.target.value)}>
+            <option value="">Varsayılan</option>
+            {connOpts("github")}
+          </select>
+        </Field>
+        <Field label="Jira bağlantısı">
+          <select className="input" value={p.jira_conn_id} onChange={(e) => set("jira_conn_id", e.target.value)}>
+            <option value="">Varsayılan</option>
+            {connOpts("jira")}
+          </select>
+        </Field>
+      </div>
+      <Field label="Repo (seçili GitHub bağlantısındaki gerçek depolar)">
+        <select
+          className="input font-mono"
+          value={customRepo ? "__custom" : p.repo}
+          onChange={(e) => {
+            if (e.target.value === "__custom") {
+              setCustomRepo(true);
+              set("repo", "");
+            } else {
+              setCustomRepo(false);
+              set("repo", e.target.value);
+            }
+          }}
+        >
+          <option value="">Seç…</option>
+          {ghRepos.map((r) => (
+            <option key={r} value={r}>
+              {r}
+            </option>
+          ))}
+          <option value="__custom">Listede yok, elle yaz…</option>
+        </select>
+        {ghHint && <div className="text-xs mt-1" style={{ color: "#f59e0b" }}>{ghHint}</div>}
       </Field>
-      <Field label="Jira projesi">
-        <input className="input" value={p.jira_project} onChange={(e) => set("jira_project", e.target.value)} />
+      {customRepo && (
+        <Field label="Özel repo (org/repo)">
+          <input className="input font-mono" value={p.repo} onChange={(e) => set("repo", e.target.value)} />
+        </Field>
+      )}
+      <Field label="Jira projesi (seçili Jira bağlantısındaki gerçek projeler)">
+        {projects.length > 0 ? (
+          <select className="input font-mono" value={p.jira_project} onChange={(e) => set("jira_project", e.target.value)}>
+            <option value="">Seç…</option>
+            {projects.map((x) => (
+              <option key={x.key} value={x.key}>
+                {x.key} — {x.name}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            className="input font-mono"
+            value={p.jira_project}
+            placeholder="SCRUM"
+            onChange={(e) => set("jira_project", e.target.value)}
+          />
+        )}
+        {pjHint && <div className="text-xs mt-1" style={{ color: "#f59e0b" }}>{pjHint}</div>}
       </Field>
       <div className="grid grid-cols-2 gap-2">
         <Field label="Geçerse geçiş">
@@ -175,18 +273,6 @@ function PolicyModal({
             {STATUSES.map((s) => (
               <option key={s}>{s}</option>
             ))}
-          </select>
-        </Field>
-        <Field label="GitHub bağlantısı">
-          <select className="input" value={p.github_conn_id} onChange={(e) => set("github_conn_id", e.target.value)}>
-            <option value="">Varsayılan</option>
-            {connOpts("github")}
-          </select>
-        </Field>
-        <Field label="Jira bağlantısı">
-          <select className="input" value={p.jira_conn_id} onChange={(e) => set("jira_conn_id", e.target.value)}>
-            <option value="">Varsayılan</option>
-            {connOpts("jira")}
           </select>
         </Field>
       </div>
