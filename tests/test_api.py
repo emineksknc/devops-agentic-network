@@ -27,14 +27,19 @@ def test_health(client):
     assert r.json()["status"] == "ok"
 
 
-def test_seed_connections_masked(client):
-    r = client.get("/api/connections")
-    assert r.status_code == 200
-    kinds = {c["kind"] for c in r.json()}
-    assert {"github", "jira", "llm"} <= kinds
-    for c in r.json():
-        assert "github_pat" not in c.get("token", "")
-        assert "ATATT" not in c.get("token", "")
+def test_connections_start_empty_then_create(client):
+    # Varsayilan tohum YOK: bos envanterle baslar, UI/API ile eklenir
+    assert client.get("/api/connections").json() == []
+    body = {"name": "GH", "kind": "github", "base_url": "https://api.github.com",
+            "owner": "o", "email": "", "token": "secret-token", "project_key": "",
+            "provider": "", "model": "", "temperature": 0.3, "max_tokens": 2048,
+            "webhook_secret": "", "is_default": True}
+    created = client.post("/api/connections", json=body).json()
+    assert created["token"] == "***masked***"
+    listed = client.get("/api/connections").json()
+    assert len(listed) == 1
+    for c in listed:
+        assert "secret-token" not in c.get("token", "")
 
 
 def test_policy_crud(client):

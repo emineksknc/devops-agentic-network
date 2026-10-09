@@ -103,7 +103,9 @@ def init_db() -> None:
             """
         )
         _migrate(conn)
-        _seed_default_connections(conn)
+        # NOT: otomatik tohumlama YOK. Kullanim karari: varsayilan baglanti
+        # olusturulmaz; herkes (proje dahil) baglantisini UI/API ile ekler.
+        # Bos DB = bos envanter, sablon mock degerleri UI tarafinda temizlenir.
 
 
 def _migrate(conn: sqlite3.Connection) -> None:
@@ -122,32 +124,6 @@ def _migrate(conn: sqlite3.Connection) -> None:
         for col in wanted:
             if col not in have:
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} TEXT NOT NULL DEFAULT ''")
-
-
-def _seed_default_connections(conn: sqlite3.Connection) -> None:
-    """Env'deki tekil ayarlari default baglanti olarak tohumla (sadece bosken)."""
-    existing = conn.execute("SELECT COUNT(*) c FROM connections").fetchone()["c"]
-    if existing:
-        return
-    conn.execute(
-        "INSERT INTO connections (id, kind, name, base_url, owner, email, token, project_key, is_default)"
-        " VALUES (?,?,?,?,?,?,?,?,?)",
-        ("github-default", "github", "Default GitHub", "https://api.github.com",
-         settings.GITHUB_OWNER, "", settings.GITHUB_TOKEN, "", 1),
-    )
-    conn.execute(
-        "INSERT INTO connections (id, kind, name, base_url, owner, email, token, project_key, is_default)"
-        " VALUES (?,?,?,?,?,?,?,?,?)",
-        ("jira-default", "jira", "Default Jira", settings.JIRA_DOMAIN,
-         "", settings.JIRA_USER_EMAIL, settings.JIRA_API_TOKEN, settings.JIRA_PROJECT_KEY, 1),
-    )
-    conn.execute(
-        "INSERT INTO connections (id, kind, name, base_url, owner, email, token, project_key, provider, model, is_default)"
-        " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-        ("llm-default", "llm", "Default LLM", getattr(settings, "OLLAMA_HOST", "http://localhost:11434"),
-         "", "", getattr(settings, "LLM_API_KEY", ""), "",
-         getattr(settings, "LLM_PROVIDER", "ollama"), settings.LLM_MODEL, 1),
-    )
 
 
 def get_connection(conn: sqlite3.Connection, conn_id: str) -> Optional[dict[str, Any]]:

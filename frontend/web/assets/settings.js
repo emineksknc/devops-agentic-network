@@ -1,5 +1,5 @@
 /* Ayarlar: sablon tasarim aynen korunur, ici canli API'ye baglanir.
-   Kartlar varsayilan baglantilari duzenler (github-default, jira-default, llm-default). */
+   Kartlar o turun ilk baglantisini duzenler; baglanti yoksa alanlar BOS kalir (mock dolgu yok). */
 (function () {
   if (!window.DAN) return;
   const { api, esc } = window.DAN;
@@ -41,20 +41,28 @@
       const pols = await api.get("/api/policies");
       const repos = pols.map((p) => p.repo).join(", ");
       const ri = document.querySelector("[data-bind='gh-repos']");
-      if (ri) { ri.value = repos; ri.readOnly = true; ri.title = "İzlenen repolar Politikalar sayfasından yönetilir"; }
+      if (ri) {
+        ri.value = repos; ri.readOnly = true;
+        ri.placeholder = repos ? "" : "henüz politika yok";
+        ri.title = "İzlenen repolar Politikalar sayfasından yönetilir";
+      }
     } catch (e) {}
 
-    if (JIRA) {
-      setVal("[data-bind='jira-domain']", JIRA.base_url);
-      setVal("[data-bind='jira-email']", JIRA.email);
-      setVal("#jira-token", "");
+    // Baglanti yoksa sablonun mock degerlerini TEMIZLE (bos birak)
+    setVal("[data-bind='jira-domain']", JIRA ? JIRA.base_url : "");
+    setVal("[data-bind='jira-email']", JIRA ? JIRA.email : "");
+    setVal("#jira-token", "");
+    setVal("[data-bind='llm-endpoint']", LLM ? LLM.base_url : "");
+    setVal("[data-bind='llm-max']", LLM ? LLM.max_tokens || 2048 : "");
+    const sl = document.querySelector("#temp-slider");
+    if (sl) {
+      sl.value = LLM && LLM.temperature != null ? LLM.temperature : 0.3;
+      const tv = $("#temp-val"); if (tv) tv.innerText = sl.value;
     }
-    if (LLM) {
-      setVal("[data-bind='llm-endpoint']", LLM.base_url);
-      setVal("[data-bind='llm-max']", LLM.max_tokens || 2048);
-      const sl = document.querySelector("#temp-slider");
-      if (sl) { sl.value = LLM.temperature != null ? LLM.temperature : 0.3; const tv = $("#temp-val"); if (tv) tv.innerText = sl.value; }
-      await fillModels(LLM);
+    if (LLM) await fillModels(LLM);
+    else {
+      const sel = document.querySelector("[data-bind='llm-model']");
+      if (sel) sel.innerHTML = '<option value="">—</option>';
     }
     try {
       const s = await api.get("/api/settings");
@@ -113,7 +121,7 @@
   }
 
   async function saveGH(silent) {
-    if (!GH) return false;
+    if (!GH) { tToast("API'ye ulaşılamadı — server çalışıyor mu? (/api/health)"); return false; }
     const token = ($("#github-token") || {}).value || "";
     const secret = ($("#webhook-token") || {}).value || "";
     const body = { name: GH.name, kind: "github", base_url: GH.base_url, owner: getVal("[data-bind='gh-org']"), email: "", project_key: "", provider: "", model: "", temperature: 0.3, max_tokens: 2048, is_default: GH.is_default };
@@ -128,7 +136,7 @@
     } catch (e) { tToast("Kaydedilemedi: " + e.message); return false; }
   }
   async function saveJira(silent) {
-    if (!JIRA) return false;
+    if (!JIRA) { tToast("API'ye ulaşılamadı — server çalışıyor mu? (/api/health)"); return false; }
     const token = ($("#jira-token") || {}).value || "";
     const body = { name: JIRA.name, kind: "jira", base_url: getVal("[data-bind='jira-domain']"), owner: "", email: getVal("[data-bind='jira-email']"), project_key: JIRA.project_key, provider: "", model: "", temperature: 0.3, max_tokens: 2048, is_default: JIRA.is_default };
     if (token) body.token = token;
@@ -141,7 +149,7 @@
     } catch (e) { tToast("Kaydedilemedi: " + e.message); return false; }
   }
   async function saveLLM(silent) {
-    if (!LLM) return false;
+    if (!LLM) { tToast("API'ye ulaşılamadı — server çalışıyor mu? (/api/health)"); return false; }
     const sl = document.querySelector("#temp-slider");
     const body = { name: LLM.name, kind: "llm", base_url: getVal("[data-bind='llm-endpoint']"), owner: "", email: "", project_key: "", provider: LLM.provider || "ollama", model: getVal("[data-bind='llm-model']"), temperature: sl ? parseFloat(sl.value) : 0.3, max_tokens: parseInt(getVal("[data-bind='llm-max']"), 10) || 2048, is_default: LLM.is_default, token: "" };
     try {
