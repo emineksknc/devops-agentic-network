@@ -1,5 +1,6 @@
 """Run yasam dongusu: baslat, listele, detay, onayla."""
 import logging
+import re
 import uuid
 from datetime import datetime, timezone
 
@@ -19,10 +20,13 @@ def _now() -> str:
 def _parse_repo(repo: str) -> dict:
     from src.config.settings import settings
 
-    if "/" in repo:
-        owner, name = repo.split("/", 1)
-        return {"owner": owner.strip(), "repo": name.strip()}
-    return {"owner": settings.GITHUB_OWNER, "repo": repo.strip()}
+    r = (repo or "").strip()
+    # Full URL yapistirilirsa (https://github.com/org/name) normalize et
+    r = re.sub(r"^https?://github\.com/", "", r, flags=re.IGNORECASE).strip("/")
+    if "/" in r:
+        owner, name = r.split("/", 1)
+        return {"owner": owner.strip(), "repo": name.strip().removesuffix(".git")}
+    return {"owner": settings.GITHUB_OWNER, "repo": r}
 
 
 async def execute_run(
