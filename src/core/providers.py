@@ -42,8 +42,27 @@ class OllamaProvider(ChatProvider):
         }
         if json_mode:
             kwargs["format"] = "json"
-        response = await client.chat(**kwargs)
+        try:
+            response = await client.chat(**kwargs)
+        except Exception as e:
+            if "not found" in str(e).lower() or "404" in str(e):
+                raise ValueError(
+                    f"model '{model}' Ollama'da kurulu degil ({self.host}). "
+                    f"Kurulu modeller: {await self._installed_models()}. "
+                    "Ayarlar'daki LLM baglantisinda modeli guncelle veya 'ollama pull' ile indir."
+                ) from e
+            raise
         return response["message"]["content"]
+
+    async def _installed_models(self) -> list:
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                r = await client.get(f"{self.host}/api/tags")
+                if r.status_code == 200:
+                    return [m.get("name", "") for m in r.json().get("models", [])]
+        except Exception:
+            pass
+        return []
 
 
 class OpenAIProvider(ChatProvider):

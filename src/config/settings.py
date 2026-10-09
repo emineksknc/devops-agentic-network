@@ -1,6 +1,17 @@
-from pydantic_settings import BaseSettings
+from pathlib import Path
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_ROOT = Path(__file__).resolve().parents[2]
+
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        # .env CWD'ye degil PROJE KOKUNE sabitlenir; server nereden
+        # baslatilirsa baslatilsin ayni ayarlar okunur (DB ile ayni kural).
+        env_file=str(_ROOT / ".env"),
+        extra="allow",
+    )
     PROJECT_NAME: str = "DevOps Agentic Network"
     GITHUB_TOKEN: str = "mock_github_token"
     GITHUB_OWNER: str = "mock_owner"
@@ -23,10 +34,5 @@ class Settings(BaseSettings):
     LANGFUSE_SECRET_KEY: str = "mock_langfuse_secret"
     LANGFUSE_PUBLIC_KEY: str = "mock_langfuse_public"
     LANGFUSE_HOST: str = "https://cloud.langfuse.com"
-
-    class Config:
-        env_file = ".env"
-        # Eğer .env içinde başka ekstra alanlar da olursa çökmesin diye:
-        extra = "allow" 
 
 settings = Settings()
