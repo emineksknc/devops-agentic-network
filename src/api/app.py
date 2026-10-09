@@ -58,8 +58,12 @@ if FRONTEND_DIR.exists():
 
     @app.get("/{page}", include_in_schema=False)
     async def _page(page: str):
-        candidate = FRONTEND_DIR / f"{page}.html"
-        if page in {"runs", "run-detail", "policies", "audit", "agents", "developers", "settings"} and candidate.exists():
+        name = page[:-5] if page.endswith(".html") else page
+        candidate = FRONTEND_DIR / f"{name}.html"
+        if name in {"runs", "run-detail", "policies", "audit", "agents", "developers", "settings"} and candidate.exists():
             return FileResponse(candidate)
         index = FRONTEND_DIR / "index.html"
         return FileResponse(index)
+
+    # Sablon ici *.html linkler + dogrudan dosya erisimi icin statik fallback (en sonda)
+    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
