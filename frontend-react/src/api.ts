@@ -1,11 +1,30 @@
+function stripHtml(s: string): string {
+  return s
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 160);
+}
+
 async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const r = await fetch(path, {
-    method,
-    headers: { "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  const data = (await r.json().catch(() => ({}))) as { detail?: string } & Record<string, unknown>;
-  if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+  let r: Response;
+  try {
+    r = await fetch(path, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch (e) {
+    throw new Error(`API'ye ulaşılamadı (${path}). Server çalışıyor mu, proxy localhost'u engelliyor mu?`);
+  }
+  const text = await r.text();
+  let data: { detail?: string } & Record<string, unknown> = {};
+  try {
+    data = text ? (JSON.parse(text) as typeof data) : {};
+  } catch {
+    throw new Error(`API JSON dışı yanıt döndürdü (HTTP ${r.status}): ${stripHtml(text) || "boş gövde"}`);
+  }
+  if (!r.ok) throw new Error(stripHtml(String(data.detail || `HTTP ${r.status}`)));
   return data as T;
 }
 
