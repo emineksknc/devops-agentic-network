@@ -35,6 +35,18 @@ async def lifespan(_: FastAPI):
         pass
     db.init_db()
     logger.info("SQLite hazir: %s", db.db_path())
+    # Yarim kalan run'lar: server restart'inda arka plan gorevi olur, status sonsuza
+    # dek 'running'/'queued' kalir. Acilista bunlari dusur.
+    try:
+        with db.connect() as conn:
+            cur = conn.execute(
+                "UPDATE runs SET status='failed', error='server yeniden baslatildi, run yarim kaldi'"
+                " WHERE status IN ('running','queued')"
+            )
+            if cur.rowcount:
+                logger.warning("%d yarim run 'failed'a cekildi.", cur.rowcount)
+    except Exception as e:
+        logger.warning("stale run temizligi atlandi: %s", e)
     yield
 
 

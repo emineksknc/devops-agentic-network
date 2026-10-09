@@ -21,6 +21,14 @@ export function RunDetail() {
     load();
   }, [load]);
 
+  // Run bitene kadar 3 sn'de bir tazele (sayfa yenilemeye gerek yok)
+  useEffect(() => {
+    if (!run || ["queued", "running"].includes(run.status)) {
+      const h = setInterval(load, 3000);
+      return () => clearInterval(h);
+    }
+  }, [run?.status, load]);
+
   async function decide(approved: boolean) {
     try {
       const r = await api.post<RunDetail>(`/api/runs/${id}/approve`, { approved, note: "" });
