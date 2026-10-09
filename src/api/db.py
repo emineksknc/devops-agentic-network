@@ -8,7 +8,13 @@ from src.config.settings import settings
 
 
 def db_path() -> Path:
-    p = Path(getattr(settings, "DAN_DB_PATH", "data/dan.db"))
+    # Goreceli yol CWD'ye degil PROJE KOKUNE sabitlenir; aksi halde server
+    # farkli klasorden baslatilinca bos bir DB acar ve anahtarlar "gider".
+    raw = getattr(settings, "DAN_DB_PATH", "data/dan.db")
+    p = Path(raw)
+    if not p.is_absolute():
+        root = Path(__file__).resolve().parents[2]
+        p = root / p
     p.parent.mkdir(parents=True, exist_ok=True)
     return p
 
