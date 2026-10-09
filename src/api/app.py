@@ -52,6 +52,10 @@ app.include_router(webhooks.router)
 if FRONTEND_DIR.exists():
     app.mount("/assets", StaticFiles(directory=FRONTEND_DIR / "assets"), name="assets")
 
+    @app.get("/", include_in_schema=False)
+    async def _index():
+        return FileResponse(FRONTEND_DIR / "index.html")
+
     @app.get("/{page}", include_in_schema=False)
     async def _page(page: str):
         candidate = FRONTEND_DIR / f"{page}.html"
