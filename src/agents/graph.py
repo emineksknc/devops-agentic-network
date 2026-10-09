@@ -74,6 +74,11 @@ def build_graph(workers: Dict[str, Any]):
         active = {"github_agent": "github", "reviewer_agent": "reviewer",
                   "jira_agent": "jira", "reporter_agent": "reporter"}
         steps = [s for s in steps if s in active and enabled.get(active[s], True)]
+        # Guvenlik degismezi: GitHub taramasi varsa review zorunludur.
+        # LLM plani atlamissa deterministik olarak eklenir (karar degil, kural).
+        if "github_agent" in steps and "reviewer_agent" not in steps and enabled.get("reviewer", True):
+            steps.insert(steps.index("github_agent") + 1, "reviewer_agent")
+            logger.info("Guvenlik kurali: reviewer_agent plana eklendi.")
         return {"plan": steps, "reason": reason}
 
     async def github_node(state: FlowState) -> Dict[str, Any]:
