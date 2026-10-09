@@ -1,20 +1,24 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, timeAgo, type Run } from "../api";
+import { api, timeAgo, type Policy, type Run } from "../api";
 import { StatusBadge } from "../components/badges";
 import { Empty, Field, Modal } from "../components/ui";
 import { toast } from "../components/Toaster";
 
 export function Runs() {
   const [runs, setRuns] = useState<Run[]>([]);
+  const [policies, setPolicies] = useState<Policy[]>([]);
   const [repoFilter, setRepoFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showNew, setShowNew] = useState(false);
+  const [customRepo, setCustomRepo] = useState(false);
   const [form, setForm] = useState({ repo: "", user_goal: "", count: 3, dry_run: true });
 
   const load = useCallback(async () => {
     try {
-      setRuns(await api.get<Run[]>("/api/runs"));
+      const [r, p] = await Promise.all([api.get<Run[]>("/api/runs"), api.get<Policy[]>("/api/policies")]);
+      setRuns(r);
+      setPolicies(p);
     } catch (e) {
       toast(`Run listesi alınamadı: ${(e as Error).message}`, false);
     }
@@ -45,6 +49,10 @@ export function Runs() {
   ];
 
   async function create() {
+    if (!form.repo.trim()) {
+      toast("Önce repo seç.", false);
+      return;
+    }
     try {
       const r = await api.post<Run>("/api/runs", {
         repo: form.repo,
@@ -153,15 +161,51 @@ export function Runs() {
       )}
 
       {showNew && (
-        <Modal title="Yeni Run Başlat" onClose={() => setShowNew(false)}>
-          <Field label="Repo (org/repo)">
-            <input
+        <Modal
+          title="Yeni Run Başlat"
+          onClose={() => {
+            setShowNew(false);
+            setCustomRepo(false);
+          }}
+        >
+          <Field label="Repo (politikası olanlar listelenir)">
+            <select
               className="input font-mono"
-              value={form.repo}
-              placeholder="org/backend-api"
-              onChange={(e) => setForm({ ...form, repo: e.target.value })}
-            />
+              value={customRepo ? "__custom" : form.repo}
+              onChange={(e) => {
+                if (e.target.value === "__custom") {
+                  setCustomRepo(true);
+                  setForm({ ...form, repo: "" });
+                } else {
+                  setCustomRepo(false);
+                  const pol = policies.find((p) => p.repo === e.target.value);
+                  setForm({
+                    ...form,
+                    repo: e.target.value,
+                    dry_run: pol ? pol.dry_run_default : form.dry_run,
+                  });
+                }
+              }}
+            >
+              <option value="">Seç…</option>
+              {policies.map((p) => (
+                <option key={p.repo} value={p.repo}>
+                  {p.repo} → {p.jira_project || "?"}
+                </option>
+              ))}
+              <option value="__custom">Özel repo yaz…</option>
+            </select>
           </Field>
+          {customRepo && (
+            <Field label="Özel repo (org/repo)">
+              <input
+                className="input font-mono"
+                value={form.repo}
+                placeholder="org/backend-api"
+                onChange={(e) => setForm({ ...form, repo: e.target.value })}
+              />
+            </Field>
+          )}
           <Field label="Hedef (boş = varsayılan)">
             <input
               className="input"
