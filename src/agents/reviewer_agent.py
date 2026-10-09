@@ -35,6 +35,18 @@ class ReviewerAgent(BaseAgent):
 
         logger.info(f"🧠 {self.name}: Lokal LLM (Ollama) ile otonom kod kalitesi ve güvenlik analizi başlatılıyor...")
 
+        # Kucuk modeller buyuk diff'lerde bogulur: dosya listesini tam al,
+        # prompt'a giren metni kisalt (izlenebilirlik kaybolmaz).
+        MAX_DIFF_CHARS = 12000
+        prompt_diff = code_changes
+        if len(code_changes) > MAX_DIFF_CHARS:
+            prompt_diff = (
+                code_changes[:MAX_DIFF_CHARS]
+                + f"\n\n[... diff kisaltildi: toplam {len(code_changes)} karakterin ilk {MAX_DIFF_CHARS} karakteri gosteriliyor. "
+                "Kararini gorunur kisma gore ver.]"
+            )
+            logger.info(f"Diff kisaltildi ({len(code_changes)} -> {MAX_DIFF_CHARS} karakter).")
+
         review_prompt = (
             "Sen kıdemli bir DevOps Güvenlik ve Kod Kalitesi Denetçisisin (Senior Code Reviewer).\n"
             "Sana bir geliştiricinin yaptığı kod değişikliklerine ait ham 'diff' (patch) verisi verilecek.\n"
@@ -57,7 +69,7 @@ class ReviewerAgent(BaseAgent):
             "  \"review_comment\": \"1-2 cümlelik Türkçe teknik tespit. FAILED ise HANGI satirin NEDEN sorun oldugunu yaz, "
             "bossa birakma. PASSED ise neyi kontrol edip temiz buldugunu yaz.\"\n"
             "}\n\n"
-            f"Denetlenecek Kod Değişiklikleri:\n{code_changes}"
+            f"Denetlenecek Kod Değişiklikleri:\n{prompt_diff}"
         )
 
         last_raw = ""
