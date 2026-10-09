@@ -43,7 +43,10 @@ class ReviewerAgent(BaseAgent):
             "Bu kod değişikliklerini şu kriterlere göre sıkı bir denetime tabi tut:\n"
             "1. Güvenlik Riski: Kod içinde açıkça yazılmış (hardcoded) şifre, API anahtarı, token veya gizli veri var mı?\n"
             "2. Kalite Riski: Bariz mantık hataları, sonsuz döngüler veya tehlikeli (try-except bloğuna alınmamış) operasyonlar var mı?\n\n"
-            "Kritik bir risk bulursan 'review_status' değerini 'FAILED' yap.\n"
+            "KANIT KURALI (cok onemli): 'FAILED' SADECE diff'te gordugun SOMUT bir satira dayanabilir. "
+            "Suphe, genel ihtiyat veya 'emin olamadim' FAILED sebebi DEGILDIR; o durumda PASSED ver. "
+            "Ornek FAILED gerekcesi: \"+password = '12345' satirinda acik sifre var.\" "
+            "Ornek PASSED gerekcesi: \"Degisiklikler yalnizca yapi/config dosyalarinda, calisan kod ve secret yok.\"\n\n"
             "Kod temiz ve güvenli görünüyorsa 'review_status' değerini 'PASSED' yap.\n\n"
             "⚠️ KESİN KURAL: Yanıtını SADECE ve SADECE aşağıdaki JSON formatında dön. Başka hiçbir açıklama veya metin yazma:\n"
             "{\n"
@@ -51,29 +54,55 @@ class ReviewerAgent(BaseAgent):
             "  \"affected_file\": \"Riskin bulunduğu dosyanın TAM ADI (diff başlığındaki '--- Dosya: ... ---' "
             "değerinden aynen kopyala). PASSED ise veya risk belirli bir dosyaya ait değilse null yaz.\",\n"
             "  \"affected_symbol\": \"Riskle ilgili değişken/fonksiyon/satır kısa alıntısı. Yoksa null yaz.\",\n"
-            "  \"review_comment\": \"1-2 cümlelik Türkçe teknik tespit. affected_file ve affected_symbol "
-            "alanlarında verdiğin bilgiyi TEKRARLAMA, sadece riskin NEDEN sorun olduğunu açıkla.\"\n"
+            "  \"review_comment\": \"1-2 cümlelik Türkçe teknik tespit. FAILED ise HANGI satirin NEDEN sorun oldugunu yaz, "
+            "bossa birakma. PASSED ise neyi kontrol edip temiz buldugunu yaz.\"\n"
             "}\n\n"
             f"Denetlenecek Kod Değişiklikleri:\n{code_changes}"
         )
 
+        last_raw = ""
+        for attempt in (1, 2):  # bozuk/eksik ciktiya tek retry
+            try:
+                llm_response = await self.llm.generate_response(
+                    self.system_prompt,
+                    review_prompt if attempt == 1 else (
+                        review_prompt + "\n\nONCEKI YANITIN GECERSIZDI, SADECE JSON DON:\n" + last_raw[:500]
+                    ),
+                    response_format="json",
+                    trace_name="reviewer.analyze",
+                )
+                last_raw = llm_response
+
+                # Ollama bazen markdown kod blokları (```json ... ```) içine alabilir, onları temizleyelim
+                clean_json = llm_response.replace("```json", "").replace("```", "").strip()
+                review_result = json.loads(clean_json)
+
+                status = str(review_result.get("review_status", "")).upper()
+                if status not in ("PASSED", "FAILED"):
+                    raise ValueError(f"gecersiz review_status: {status!r}")
+                affected_file = review_result.get("affected_file")
+                affected_symbol = review_result.get("affected_symbol")
+                raw_comment = (review_result.get("review_comment") or "").strip()
+                # Gerekcesiz FAILED yasak: yorumu bossa retry
+                if status == "FAILED" and not raw_comment:
+                    raise ValueError("FAILED gerekcesiz donduruldu")
+                break
+            except Exception as e:
+                logger.warning(f"Reviewer deneme {attempt} basarisiz: {e}")
+                status, affected_file, affected_symbol = "FAILED", None, None
+                raw_comment = ""
+                if attempt == 2:
+                    # 2 deneme de basarisiz: fail-closed ama DURUST yorumla
+                    raw_comment = (
+                        "Model gecerli bir denetim uretemedi (2 deneme). "
+                        "Guvenlik nedeniyle manuel incelemeye dusuruldu."
+                    )
+        # (for/else YOK: basarisizlik zaten except icinde islenir, break basari demek)
+
+        if not raw_comment:
+            raw_comment = "Kod analizi başarıyla tamamlandı."
+
         try:
-            llm_response = await self.llm.generate_response(
-                self.system_prompt,
-                review_prompt,
-                response_format="json",
-                trace_name="reviewer.analyze",
-            )
-
-            # Ollama bazen markdown kod blokları (```json ... ```) içine alabilir, onları temizleyelim
-            clean_json = llm_response.replace("```json", "").replace("```", "").strip()
-            review_result = json.loads(clean_json)
-
-            status = review_result.get("review_status", "FAILED")
-            affected_file = review_result.get("affected_file")
-            affected_symbol = review_result.get("affected_symbol")
-            raw_comment = review_result.get("review_comment", "Kod analizi başarıyla tamamlandı.")
-
             # 🎯 Yapısal alanları (affected_file/affected_symbol) serbest metinle birleştirerek
             # her zaman dosya adı içeren, izlenebilir bir yorum üretiyoruz.
             has_valid_file = affected_file and str(affected_file).lower() != "null"
@@ -101,26 +130,20 @@ class ReviewerAgent(BaseAgent):
                 composed_comment = f"{location_prefix}: {raw_comment}"
             else:
                 composed_comment = raw_comment
-
-            logger.info(f"✅ {self.name} analizi tamamladı. Sonuç: {status}")
-            return {
-                "agent": self.name,
-                "review_status": status,
-                "review_comment": composed_comment
-            }
-
         except Exception as e:
-            logger.error(f"❌ ReviewerAgent LLM analizi veya JSON parse sırasında hata aldı: {e}")
-            # 🎯 FAIL-CLOSED: Denetim mekanizması çalışmazsa kodu "güvenli" saymıyoruz.
-            # PASSED yerine FAILED dönüyoruz ki Orchestrator akışı durdursun ve
-            # Jira'yı "Blocked/manuel inceleme" durumuna çeksin. Bir güvenlik denetiminin
-            # sessizce başarısız olup her şeyi geçirmesi, hiç denetim yapmamaktan daha kötüdür.
-            return {
-                "agent": self.name,
-                "review_status": "FAILED",
-                "review_comment": "Otonom denetim motoru bir yanıt üretemedi (LLM boş/bozuk çıktı döndü). "
-                                   "Güvenlik nedeniyle bu değişiklik manuel incelemeye düşürüldü."
-            }
+            # 🎯 FAIL-CLOSED son hat: yorum birlestirme bile patlarsa manuel incelemeye dusur
+            logger.error(f"❌ ReviewerAgent yorum olusturamadi: {e}")
+            status, composed_comment = "FAILED", (
+                "Otonom denetim motoru bir yanıt üretemedi (LLM boş/bozuk çıktı döndü). "
+                "Güvenlik nedeniyle bu değişiklik manuel incelemeye düşürüldü."
+            )
+
+        logger.info(f"✅ {self.name} analizi tamamladı. Sonuç: {status}")
+        return {
+            "agent": self.name,
+            "review_status": status,
+            "review_comment": composed_comment
+        }
 
     def get_tool_schemas(self) -> List[Dict[str, Any]]:
         return []
