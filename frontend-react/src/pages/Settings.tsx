@@ -26,6 +26,7 @@ export function Settings() {
   const [editing, setEditing] = useState<(Omit<Connection, "id"> & { id?: string }) | null>(null);
   const [form, setForm] = useState(BLANK);
   const [models, setModels] = useState<{ name: string; source?: string }[]>([]);
+  const [modelsLoading, setModelsLoading] = useState(false);
   const [redact, setRedact] = useState(true);
 
   const load = useCallback(async () => {
@@ -45,7 +46,8 @@ export function Settings() {
     load();
   }, [load]);
 
-  useEffect(() => {
+  // Model listesi: ollama'da kurulu modeller, cloud'da bilinenler. Elle girme devri biter.
+  const loadModels = useCallback(async () => {
     if (!editing || editing.kind !== "llm") {
       setModels([]);
       return;
@@ -53,11 +55,23 @@ export function Settings() {
     const q = editing.id
       ? `?conn_id=${encodeURIComponent(editing.id)}`
       : `?provider=${encodeURIComponent(editing.provider || "ollama")}`;
-    api
-      .get<{ name: string; source?: string }[]>(`/api/llm/models${q}`)
-      .then(setModels)
-      .catch(() => setModels([]));
-  }, [editing?.id, editing?.kind, editing?.provider]); // eslint-disable-line react-hooks/exhaustive-deps
+    setModelsLoading(true);
+    try {
+      const list = await api.get<{ name: string; source?: string }[]>(`/api/llm/models${q}`);
+      setModels(list);
+      // Model bossa listenin basini otomatik sec (yeni baglantida sormadan dolar)
+      if (!form.model && list.length > 0) set("model", list[0].name);
+    } catch {
+      setModels([]);
+    } finally {
+      setModelsLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing?.id, editing?.kind, editing?.provider]);
+
+  useEffect(() => {
+    loadModels();
+  }, [loadModels]);
 
   function openNew() {
     setForm({ ...BLANK });
@@ -231,17 +245,47 @@ export function Settings() {
                 </select>
               </Field>
               <Field label={`Model${models.length ? ` (${models.length} kurulu)` : ""}`}>
-                <input
-                  className="input font-mono"
-                  list="dan-models"
-                  value={form.model}
-                  onChange={(e) => set("model", e.target.value)}
-                />
-                <datalist id="dan-models">
-                  {models.map((m) => (
-                    <option key={m.name} value={m.name} />
-                  ))}
-                </datalist>
+                <div className="flex gap-2">
+                  {models.length > 0 ? (
+                    <select
+                      className="input font-mono"
+                      value={form.model}
+                      onChange={(e) => set("model", e.target.value)}
+                    >
+                      {!models.some((m) => m.name === form.model) && (
+                        <option value={form.model}>
+                          {form.model || "— seç —"}
+                        </option>
+                      )}
+                      {models.map((m) => (
+                        <option key={m.name} value={m.name}>
+                          {m.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      className="input font-mono"
+                      placeholder="örn. qwen3:14b"
+                      value={form.model}
+                      onChange={(e) => set("model", e.target.value)}
+                    />
+                  )}
+                  <button
+                    type="button"
+                    className="btn-ghost shrink-0"
+                    title="Listeyi yenile (ollama pull sonrası)"
+                    onClick={loadModels}
+                    disabled={modelsLoading}
+                  >
+                    {modelsLoading ? "…" : "↻ Yenile"}
+                  </button>
+                </div>
+                {models.length === 0 && !modelsLoading && (
+                  <p className="text-xs text-muted mt-1">
+                    Liste alınamadı (Ollama kapalı olabilir) — elle yazabilirsin.
+                  </p>
+                )}
               </Field>
               <div className="grid grid-cols-2 gap-2">
                 <Field label="Sıcaklık">
