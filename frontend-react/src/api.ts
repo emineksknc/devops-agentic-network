@@ -81,6 +81,7 @@ export interface RunEvent {
 export interface RunDetail extends Run {
   final_report?: string | null;
   error?: string | null;
+  jira_base_url?: string;
   commit_units: CommitUnit[];
   jira_actions: JiraAction[];
   events: RunEvent[];

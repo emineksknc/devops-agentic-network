@@ -134,6 +134,7 @@ def test_run_detail_with_events(client):
     # LLM muhrü listede ve detayda doner
     assert body["llm_provider"] == "ollama"
     assert body["llm_model"] == "qwen3:14b"
+    assert "jira_base_url" in body
     listed = client.get("/api/runs").json()
     row = next(x for x in listed if x["run_id"] == "evtest")
     assert row["llm_model"] == "qwen3:14b"

@@ -24,12 +24,27 @@ export function StatusBadge({ status }: { status?: string | null }) {
   );
 }
 
-export function Chip({ children }: { children: React.ReactNode }) {
+export function Chip({ children, href }: { children: React.ReactNode; href?: string }) {
+  const style = {
+    background: "#0f172a",
+    border: "1px solid #334155",
+    color: "#94a3b8",
+  } as const;
+  if (href) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        className="px-2 py-0.5 rounded text-xs font-mono hover:text-ink"
+        style={style}
+      >
+        {children}
+      </a>
+    );
+  }
   return (
-    <span
-      className="px-2 py-0.5 rounded text-xs font-mono"
-      style={{ background: "#0f172a", border: "1px solid #334155", color: "#94a3b8" }}
-    >
+    <span className="px-2 py-0.5 rounded text-xs font-mono" style={style}>
       {children}
     </span>
   );

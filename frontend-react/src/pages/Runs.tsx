@@ -152,10 +152,10 @@ export function Runs() {
         <div className="flex gap-1.5 flex-wrap">
           {(
             [
-              ["all", "Tüm Hükümler"],
-              ["failed", "FAILED'lı"],
-              ["mismatch", "MISMATCH'lı"],
-              ["clean", "Temiz"],
+              ["all", "Tümü"],
+              ["failed", "Riskli"],
+              ["mismatch", "Kapsam dışı"],
+              ["clean", "Sorunsuz"],
             ] as [string, string][]
           ).map(([v, label]) => (
             <button

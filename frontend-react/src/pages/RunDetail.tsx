@@ -4,6 +4,14 @@ import { api, timeAgo, type RunDetail } from "../api";
 import { Chip, StatusBadge } from "../components/badges";
 import { toast } from "../components/Toaster";
 
+function repoUrl(repo: string) {
+  return repo.startsWith("http") ? repo : `https://github.com/${repo}`;
+}
+
+function ticketUrl(base: string | undefined, tid: string) {
+  return base ? `${base.replace(/\/$/, "")}/browse/${tid}` : "";
+}
+
 export function RunDetail() {
   const { id } = useParams();
   const [run, setRun] = useState<RunDetail | null>(null);
@@ -129,21 +137,54 @@ export function RunDetail() {
         {run.commit_units.map((u) => (
           <div key={u.sha || u.short_sha} className="card p-4 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-mono text-accent-soft">{u.short_sha}</span>
+              {u.sha || u.short_sha ? (
+                <a
+                  href={`${repoUrl(run.repo)}/commit/${u.sha || u.short_sha}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs font-mono text-accent-soft hover:underline"
+                >
+                  {u.short_sha}
+                </a>
+              ) : (
+                <span className="text-xs font-mono text-accent-soft">{u.short_sha}</span>
+              )}
               <StatusBadge status={u.review_status === "FAILED" ? "failed" : u.review_status === "MISMATCH" ? "mismatch" : "success"} />
               {(u.jira_ids || []).map((t) => (
-                <Chip key={t}>{t}</Chip>
+                <Chip key={t} href={ticketUrl(run.jira_base_url, t) || undefined}>{t}</Chip>
               ))}
             </div>
             <div className="text-sm font-semibold">{u.message}</div>
-            <div className="rounded-md p-2 grid gap-1 text-xs" style={{ background: "#0b1326" }}>
+            <div className="rounded-md px-2.5 py-1 grid gap-0.5 text-xs" style={{ background: "#0b1326" }}>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-muted">GitHub yazarı</span>
-                <span className="font-mono">@{u.author || "?"}</span>
+                {u.author ? (
+                  <a
+                    href={`https://github.com/${u.author}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-mono hover:underline"
+                  >
+                    @{u.author}
+                  </a>
+                ) : (
+                  <span className="font-mono">?</span>
+                )}
               </div>
               {Object.entries(u.jira_people || {}).map(([tid, p]) => (
                 <div key={tid} className="flex items-center justify-between gap-2">
-                  <span className="text-muted">Jira {tid}</span>
+                  {ticketUrl(run.jira_base_url, tid) ? (
+                    <a
+                      href={ticketUrl(run.jira_base_url, tid)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-muted hover:underline"
+                    >
+                      Jira {tid}
+                    </a>
+                  ) : (
+                    <span className="text-muted">Jira {tid}</span>
+                  )}
                   <span className="font-mono">
                     oluşturan: {p.creator || "?"} · atanan: {p.assignee || "?"}
                   </span>

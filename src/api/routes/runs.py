@@ -191,10 +191,19 @@ async def get_run(run_id: str) -> RunDetailOut:
         units = conn.execute("SELECT * FROM commit_units WHERE run_id=? ORDER BY id", (run_id,)).fetchall()
         actions = conn.execute("SELECT * FROM jira_actions WHERE run_id=? ORDER BY id", (run_id,)).fetchall()
         events = conn.execute("SELECT * FROM run_events WHERE run_id=? ORDER BY id", (run_id,)).fetchall()
+        # Bilet linkleri icin Jira adresi (canli cozumleme: run'in baglantisi, yoksa varsayilan)
+        jira_base_url = ""
+        try:
+            jc = db.get_connection(conn, r.get("jira_conn_id") or "") if r.get("jira_conn_id") else None
+            jc = jc or db.default_connection(conn, "jira")
+            jira_base_url = ((jc or {}).get("base_url") or "").rstrip("/")
+        except Exception:
+            jira_base_url = ""
     return RunDetailOut(
         run_id=r["id"], repo=r["repo"], status=r["status"], dry_run=bool(r["dry_run"]),
         created_at=r["created_at"], final_report=r.get("final_report"), error=r.get("error"),
         llm_provider=r.get("llm_provider") or "", llm_model=r.get("llm_model") or "",
+        jira_base_url=jira_base_url,
         commit_units=[
             CommitUnitOut(
                 sha=u["sha"], short_sha=u["short_sha"], message=u["message"], author=u["author"],
