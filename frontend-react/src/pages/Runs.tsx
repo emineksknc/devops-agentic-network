@@ -10,6 +10,9 @@ export function Runs() {
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [repoFilter, setRepoFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [modelFilter, setModelFilter] = useState("all");
+  const [verdictFilter, setVerdictFilter] = useState("all");
+  const [query, setQuery] = useState("");
   const [showNew, setShowNew] = useState(false);
   const [customRepo, setCustomRepo] = useState(false);
   const [form, setForm] = useState({ repo: "", user_goal: "", count: 3, dry_run: true });
@@ -31,6 +34,8 @@ export function Runs() {
   }, [load]);
 
   const repos = [...new Set(runs.map((r) => r.repo))];
+  const models = [...new Set(runs.map((r) => r.llm_model || "").filter(Boolean))];
+  const q = query.trim().toLowerCase();
   const counts = {
     all: runs.length,
     success: runs.filter((r) => r.status === "success").length,
@@ -39,7 +44,15 @@ export function Runs() {
     queued: runs.filter((r) => ["queued", "running"].includes(r.status)).length,
   };
   const visible = runs.filter(
-    (r) => (repoFilter === "all" || r.repo === repoFilter) && (statusFilter === "all" || r.status === statusFilter)
+    (r) =>
+      (repoFilter === "all" || r.repo === repoFilter) &&
+      (statusFilter === "all" || r.status === statusFilter) &&
+      (modelFilter === "all" || (r.llm_model || "") === modelFilter) &&
+      (verdictFilter === "all" ||
+        (verdictFilter === "failed" && (r.failed_count || 0) > 0) ||
+        (verdictFilter === "mismatch" && (r.mismatch_count || 0) > 0) ||
+        (verdictFilter === "clean" && (r.failed_count || 0) === 0 && (r.mismatch_count || 0) === 0)) &&
+      (!q || r.run_id.toLowerCase().includes(q) || r.repo.toLowerCase().includes(q))
   );
   const stats: [string, number, string][] = [
     ["Toplam", counts.all, "#f8fafc"],
@@ -100,6 +113,22 @@ export function Runs() {
             </option>
           ))}
         </select>
+        <select className="input sm:max-w-xs" value={modelFilter} onChange={(e) => setModelFilter(e.target.value)}>
+          <option value="all">Tüm Modeller</option>
+          {models.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </select>
+        <input
+          className="input font-mono sm:max-w-xs"
+          placeholder="run id / repo ara…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
+      <div className="flex flex-col sm:flex-row gap-2">
         <div className="flex gap-1.5 flex-wrap">
           {(
             [
@@ -115,6 +144,25 @@ export function Runs() {
               onClick={() => setStatusFilter(v)}
               className={`px-3 py-1.5 rounded-full text-xs ${statusFilter === v ? "font-semibold" : "text-muted"}`}
               style={statusFilter === v ? { background: "#494bd6", color: "#fff" } : { background: "#222a3d" }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-1.5 flex-wrap">
+          {(
+            [
+              ["all", "Tüm Hükümler"],
+              ["failed", "FAILED'lı"],
+              ["mismatch", "MISMATCH'lı"],
+              ["clean", "Temiz"],
+            ] as [string, string][]
+          ).map(([v, label]) => (
+            <button
+              key={v}
+              onClick={() => setVerdictFilter(v)}
+              className={`px-3 py-1.5 rounded-full text-xs ${verdictFilter === v ? "font-semibold" : "text-muted"}`}
+              style={verdictFilter === v ? { background: "#494bd6", color: "#fff" } : { background: "#222a3d" }}
             >
               {label}
             </button>

@@ -136,12 +136,20 @@ export function RunDetail() {
               ))}
             </div>
             <div className="text-sm font-semibold">{u.message}</div>
-            <div className="text-xs text-muted">Yazar: {u.author || "?"}</div>
-            {Object.entries(u.jira_people || {}).map(([tid, p]) => (
-              <div key={tid} className="text-xs text-muted">
-                Jira {tid} · oluşturan: {p.creator || "?"} · atanan: {p.assignee || "?"}
+            <div className="rounded-md p-2 grid gap-1 text-xs" style={{ background: "#0b1326" }}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-muted">GitHub yazarı</span>
+                <span className="font-mono">@{u.author || "?"}</span>
               </div>
-            ))}
+              {Object.entries(u.jira_people || {}).map(([tid, p]) => (
+                <div key={tid} className="flex items-center justify-between gap-2">
+                  <span className="text-muted">Jira {tid}</span>
+                  <span className="font-mono">
+                    oluşturan: {p.creator || "?"} · atanan: {p.assignee || "?"}
+                  </span>
+                </div>
+              ))}
+            </div>
             {u.review_comment && (
               <div className="text-xs rounded-md p-2" style={{ background: "#0b1326", color: "#c7c4d7" }}>
                 {u.review_comment}

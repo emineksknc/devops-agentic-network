@@ -57,7 +57,10 @@ class GitHubAgent(BaseAgent):
                             "sha": c.get("sha", ""), # Tam SHA'yı tutuyoruz ki detay sorgusunda patlamayalım
                             "short_sha": c.get("sha", "")[:7],
                             "message": c.get("commit", {}).get("message", ""),
-                            "author": c.get("commit", {}).get("author", {}).get("name", "Unknown")
+                            # GitHub kullanici adi (login) tercih edilir; baglantisiz
+                            # e-postalarda login bos olur, o zaman git gorunen adina dusulur.
+                            "author": (c.get("author") or {}).get("login")
+                                      or c.get("commit", {}).get("author", {}).get("name", "Unknown")
                         })
                     self.last_error = ""
                     return parsed_commits

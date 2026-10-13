@@ -23,6 +23,8 @@ class RunOut(BaseModel):
     created_at: str
     llm_provider: str = ""
     llm_model: str = ""
+    failed_count: int = 0
+    mismatch_count: int = 0
 
 
 class CommitUnitOut(BaseModel):

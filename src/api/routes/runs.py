@@ -156,7 +156,9 @@ async def create_run(body: RunCreate, background: BackgroundTasks) -> RunOut:
 async def list_runs(repo: str = "", status: str = "") -> list[RunOut]:
     q = """SELECT r.*,
              (SELECT COUNT(*) FROM commit_units c WHERE c.run_id=r.id) AS commit_count,
-             (SELECT COUNT(*) FROM commit_units c WHERE c.run_id=r.id AND c.review_status IN ('FAILED','MISMATCH')) AS blocked_count
+             (SELECT COUNT(*) FROM commit_units c WHERE c.run_id=r.id AND c.review_status IN ('FAILED','MISMATCH')) AS blocked_count,
+             (SELECT COUNT(*) FROM commit_units c WHERE c.run_id=r.id AND c.review_status='FAILED') AS failed_count,
+             (SELECT COUNT(*) FROM commit_units c WHERE c.run_id=r.id AND c.review_status='MISMATCH') AS mismatch_count
            FROM runs r WHERE 1=1"""
     args: list = []
     if repo:
@@ -174,6 +176,7 @@ async def list_runs(repo: str = "", status: str = "") -> list[RunOut]:
             blocked_count=r["blocked_count"], commit_count=r["commit_count"], created_at=r["created_at"],
             llm_provider=r["llm_provider"] if "llm_provider" in r.keys() else "",
             llm_model=r["llm_model"] if "llm_model" in r.keys() else "",
+            failed_count=r["failed_count"], mismatch_count=r["mismatch_count"],
         )
         for r in rows
     ]

@@ -45,6 +45,8 @@ export interface Run {
   created_at: string;
   llm_provider?: string;
   llm_model?: string;
+  failed_count?: number;
+  mismatch_count?: number;
 }
 
 export interface CommitUnit {

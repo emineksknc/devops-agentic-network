@@ -137,3 +137,26 @@ def test_run_detail_with_events(client):
     listed = client.get("/api/runs").json()
     row = next(x for x in listed if x["run_id"] == "evtest")
     assert row["llm_model"] == "qwen3:14b"
+
+
+def test_run_list_verdict_flags(client):
+    from src.api import db as dbmod
+
+    with dbmod.connect() as conn:
+        conn.execute(
+            "INSERT INTO runs (id, created_at, trigger, repo, user_goal, status, dry_run)"
+            " VALUES (?,?,?,?,?,?,?)",
+            ("flg", "2026-01-02T00:00:00+00:00", "api", "org/demo", "", "success", 1),
+        )
+        conn.execute(
+            "INSERT INTO commit_units (run_id, sha, short_sha, review_status) VALUES (?,?,?,?)",
+            ("flg", "a", "a", "FAILED"),
+        )
+        conn.execute(
+            "INSERT INTO commit_units (run_id, sha, short_sha, review_status) VALUES (?,?,?,?)",
+            ("flg", "b", "b", "MISMATCH"),
+        )
+    row = next(x for x in client.get("/api/runs").json() if x["run_id"] == "flg")
+    assert row["failed_count"] == 1
+    assert row["mismatch_count"] == 1
+    assert row["blocked_count"] == 2
