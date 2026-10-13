@@ -102,3 +102,26 @@ def test_mismatch_rejected_without_ticket_context():
     ]))
     out = asyncio.run(r.run("t", context={"code_changes": DIFF}))
     assert out["review_status"] == "PASSED"
+
+
+def test_conditional_mismatch_retries_to_concrete():
+    # "eger...degilse" ile hukumsuz MISMATCH -> retry -> somut MISMATCH
+    r = ReviewerAgent(model_client=FakeLLM([
+        ANALIZ,
+        '{"review_status": "MISMATCH", "review_comment": "Biletle ilgili degilse MISMATCH olur."}',
+        '{"review_status": "MISMATCH", "review_comment": "Bilet giris ekrani istiyor, diff sadece config iceriyor."}',
+    ]))
+    out = asyncio.run(r.run("t", context={"code_changes": DIFF, "ticket_context": TICKET}))
+    assert out["review_status"] == "MISMATCH"
+    assert "giris" in out["review_comment"].lower()
+
+
+def test_double_conditional_is_honest_fail_closed():
+    r = ReviewerAgent(model_client=FakeLLM([
+        ANALIZ,
+        '{"review_status": "MISMATCH", "review_comment": "Eger alakasizsa boyle olur."}',
+        '{"review_status": "MISMATCH", "review_comment": "Eger bilet farkliysa yine MISMATCH olur."}',
+    ]))
+    out = asyncio.run(r.run("t", context={"code_changes": DIFF, "ticket_context": TICKET}))
+    assert out["review_status"] == "FAILED"
+    assert "2 deneme" in out["review_comment"]

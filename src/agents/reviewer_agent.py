@@ -88,8 +88,10 @@ class ReviewerAgent(BaseAgent):
             "Kod temiz ve güvenli görünüyorsa 'review_status' değerini 'PASSED' yap.\n\n"
             + (
                 "KAPSAM KURALI (bilet baglami verildi): Asagidaki Jira bilet(ler)inin istedigi is ile diff'i karsilastir. "
-                "Kod temiz olsa bile biletin istedigi fonksiyonla ALAKASIZSA 'review_status' degerini 'MISMATCH' yap "
-                "ve review_comment'te biletin ne istedigini + kodun neden karsilamadigini yaz. "
+                "Kod temiz olsa bile biletin istedigi fonksiyonla ALAKASIZSA 'review_status' degerini 'MISMATCH' yap. "
+                "MISMATCH gerekcesi SOMUT olmak zorunda: (1) bilet NE istiyor, (2) kod NE yapiyor, ikisini de yaz. "
+                "KOSULLU HUKUM YASAK: 'eger / degilse / ise' ile karar verilemez ('ilgili degilse MISMATCH olur' gibi "
+                "cumleler hukumsuzdur, kural hakkinda akil yurutme, KARAR ver). supheliysen PASSED ver, uydurma. "
                 "Bilet baglami YOKSA MISMATCH kullanma.\n\n"
                 if ticket_context else ""
             ) +
@@ -145,6 +147,8 @@ class ReviewerAgent(BaseAgent):
                     + (
                         "risk yok ama kod Jira biletinin istedigi isle alakasizsa MISMATCH, "
                         "risk yok ve is karsilaniyorsa PASSED. "
+                        "MISMATCH'ta biletin ne istedigini ve kodun ne yaptigini somut yaz; "
+                        "kosullu (eger/degilse) hukum yasak. "
                         if ticket_context else
                         "yoksa PASSED. "
                     ) +
@@ -168,6 +172,11 @@ class ReviewerAgent(BaseAgent):
                 # Gerekcesiz FAILED/MISMATCH yasak: yorumu bossa retry
                 if status in ("FAILED", "MISMATCH") and not raw_comment:
                     raise ValueError(f"{status} gerekcesiz donduruldu")
+                # Kosullu MISMATCH yasak: "eger/degilse" ile hukumsuz karar retry
+                if status == "MISMATCH" and re.search(
+                    r"\b(eğer|eger|değilse|degilse)\b", raw_comment, re.IGNORECASE
+                ):
+                    raise ValueError("MISMATCH kosullu donduruldu (karar ver, kural anlatma)")
                 break
             except Exception as e:
                 logger.warning(f"Reviewer deneme {attempt} basarisiz: {e}")
