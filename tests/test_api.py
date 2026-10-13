@@ -100,3 +100,24 @@ def test_provider_requires_key():
 
     with _p.raises(ValueError):
         OpenAIProvider(api_key="")
+
+
+def test_run_detail_with_events(client):
+    # Regresyon: event'li run detay sayfasi 500 vermemeli (RunEventOut importu).
+    from src.api import db as dbmod
+
+    with dbmod.connect() as conn:
+        conn.execute(
+            "INSERT INTO runs (id, created_at, trigger, repo, user_goal, status, dry_run)"
+            " VALUES (?,?,?,?,?,?,?)",
+            ("evtest", "2026-01-01T00:00:00+00:00", "api", "org/demo", "", "success", 1),
+        )
+        conn.execute(
+            "INSERT INTO run_events (run_id, created_at, node, level, message) VALUES (?,?,?,?,?)",
+            ("evtest", "2026-01-01T00:00:01+00:00", "plan", "info", "Plan: github_agent"),
+        )
+    r = client.get("/api/runs/evtest")
+    assert r.status_code == 200
+    body = r.json()
+    assert len(body["events"]) == 1
+    assert body["events"][0]["node"] == "plan"

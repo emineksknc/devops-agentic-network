@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 
 from src.api import db
-from src.api.schemas import ApproveIn, CommitUnitOut, JiraActionOut, RunCreate, RunDetailOut, RunOut
+from src.api.schemas import ApproveIn, CommitUnitOut, JiraActionOut, RunCreate, RunDetailOut, RunEventOut, RunOut
 
 logger = logging.getLogger("api.runs")
 router = APIRouter(prefix="/api/runs", tags=["runs"])

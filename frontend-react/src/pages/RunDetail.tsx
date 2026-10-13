@@ -12,6 +12,8 @@ export function RunDetail() {
   const load = useCallback(async () => {
     try {
       setRun(await api.get<RunDetail>(`/api/runs/${id}`));
+      // Server restart'a denk gelip hata yediyse, sonraki basarili polling ekrani toplar.
+      setError("");
     } catch {
       setError("Run bulunamadı.");
     }
