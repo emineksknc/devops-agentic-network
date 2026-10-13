@@ -34,6 +34,7 @@ class CommitUnitOut(BaseModel):
     review_status: Optional[str] = None
     review_comment: Optional[str] = None
     affected_file: Optional[str] = None
+    jira_people: dict[str, dict[str, str]] = {}
 
 
 class JiraActionOut(BaseModel):

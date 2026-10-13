@@ -75,6 +75,15 @@ def test_get_issue_text_missing_is_empty(monkeypatch):
     assert asyncio.run(_jira().get_issue_text("TTA-99")) == ""
 
 
+def test_get_issue_people(monkeypatch):
+    monkeypatch.setattr(httpx, "AsyncClient", _Client)
+    _Client.response = _Resp(200, {"key": "TTA-9", "fields": {
+        "summary": "s", "description": None,
+        "assignee": {"displayName": "Ayse Atanan"}, "creator": None}})
+    people = asyncio.run(_jira().get_issue_people("TTA-9"))
+    assert people == {"assignee": "Ayse Atanan", "creator": "atanmamis"}
+
+
 class FakeLLM:
     def __init__(self, outputs):
         self.outputs = list(outputs)

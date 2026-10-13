@@ -111,16 +111,20 @@ def build_graph(workers: Dict[str, Any]):
                 unit["review_status"] = "PASSED"
                 unit["review_comment"] = "Incelenecek kod degisikligi bulunamadi."
                 continue
-            # Kapsam karsilastirmasi: biletlerin istedigi is reviewer'a baglam verilir
+            # Kapsam karsilastirmasi: biletlerin istedigi is reviewer'a baglam verilir.
+            # Ayni okumayla kisi muhrü de tutulur (detayda GitHub yazari + Jira kisileri).
             ticket_lines = []
+            people_map: Dict[str, Any] = {}
             for tid in unit.get("jira_ids", []) or []:
                 try:
                     txt = await jira_worker.get_issue_text(tid)
+                    people_map[tid] = await jira_worker.get_issue_people(tid)
                 except Exception:
                     txt = ""
                 if txt:
                     ticket_lines.append(f"{tid}: {txt[:800]}")
             ticket_context = "\n".join(ticket_lines)
+            unit["jira_people"] = people_map
             r = await reviewer_worker.run("Review code quality", context={
                 "code_changes": unit["code_changes"],
                 "ticket_context": ticket_context,

@@ -117,11 +117,20 @@ def test_run_detail_with_events(client):
             "INSERT INTO run_events (run_id, created_at, node, level, message) VALUES (?,?,?,?,?)",
             ("evtest", "2026-01-01T00:00:01+00:00", "plan", "info", "Plan: github_agent"),
         )
+        conn.execute(
+            "INSERT INTO commit_units (run_id, sha, short_sha, message, author, jira_ids,"
+            " review_status, review_comment, jira_people) VALUES (?,?,?,?,?,?,?,?,?)",
+            ("evtest", "abc123", "abc123", "TTA-9 isi", "emineksknc", '["TTA-9"]',
+             "PASSED", "Temiz.", '{"TTA-9": {"assignee": "Ayse Atanan", "creator": "Mehmet Olusturan"}}'),
+        )
     r = client.get("/api/runs/evtest")
     assert r.status_code == 200
     body = r.json()
     assert len(body["events"]) == 1
     assert body["events"][0]["node"] == "plan"
+    # Kisi muhrü detayda doner
+    assert body["commit_units"][0]["jira_people"] == {
+        "TTA-9": {"assignee": "Ayse Atanan", "creator": "Mehmet Olusturan"}}
     # LLM muhrü listede ve detayda doner
     assert body["llm_provider"] == "ollama"
     assert body["llm_model"] == "qwen3:14b"

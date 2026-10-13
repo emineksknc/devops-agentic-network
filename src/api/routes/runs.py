@@ -1,4 +1,5 @@
 """Run yasam dongusu: baslat, listele, detay, onayla."""
+import json
 import logging
 import re
 import uuid
@@ -87,13 +88,14 @@ async def execute_run(
             for u in units:
                 conn.execute(
                     """INSERT INTO commit_units
-                       (run_id, sha, short_sha, message, author, jira_ids, code_changes, review_status, review_comment)
-                       VALUES (?,?,?,?,?,?,?,?,?)""",
+                       (run_id, sha, short_sha, message, author, jira_ids, code_changes, review_status, review_comment, jira_people)
+                       VALUES (?,?,?,?,?,?,?,?,?,?)""",
                     (
                         run_id, u.get("sha"), u.get("short_sha"), u.get("message"),
-                        u.get("author"), __import__("json").dumps(u.get("jira_ids", [])),
+                        u.get("author"), json.dumps(u.get("jira_ids", [])),
                         (u.get("code_changes") or "")[:20000],
                         u.get("review_status"), u.get("review_comment"),
+                        json.dumps(u.get("jira_people") or {}),
                     ),
                 )
             for p in planned:
@@ -195,6 +197,7 @@ async def get_run(run_id: str) -> RunDetailOut:
                 sha=u["sha"], short_sha=u["short_sha"], message=u["message"], author=u["author"],
                 jira_ids=db.loads(u["jira_ids"]), review_status=u["review_status"],
                 review_comment=u["review_comment"],
+                jira_people=(db.loads(u["jira_people"]) if "jira_people" in u.keys() and u["jira_people"] else {}) or {},
             )
             for u in units
         ],

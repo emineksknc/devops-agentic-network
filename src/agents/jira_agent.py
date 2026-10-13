@@ -56,7 +56,7 @@ class JiraAgent(BaseAgent):
         Yoksa/erisilemezse None (fail-closed: yok say, cökertme)."""
         if ticket_id in self._issue_cache:
             return self._issue_cache[ticket_id]
-        url = f"{self._base_url()}/rest/api/3/issue/{ticket_id}?fields=summary,description"
+        url = f"{self._base_url()}/rest/api/3/issue/{ticket_id}?fields=summary,description,assignee,creator"
         headers = {"Accept": "application/json"}
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
@@ -78,6 +78,18 @@ class JiraAgent(BaseAgent):
                 f"❌ Jira Bağlantı Hatası (Bilet Okuma) [{type(e).__name__}]: {repr(e)}"
             )
             return None
+
+    async def get_issue_people(self, ticket_id: str) -> Dict[str, str]:
+        """Biletin Jira tarafi kisileri: atanan + olusturan (gorunen ad). Yoksa 'atanmamis'."""
+        issue = await self.get_issue(ticket_id)
+        fields = (issue.get("fields", {}) or {}) if issue else {}
+
+        def name(user: Any) -> str:
+            if isinstance(user, dict):
+                return (user.get("displayName") or "").strip() or "atanmamis"
+            return "atanmamis"
+
+        return {"assignee": name(fields.get("assignee")), "creator": name(fields.get("creator"))}
 
     async def get_issue_text(self, ticket_id: str) -> str:
         """'OZET — aciklama' seklinde tek satirlik bilet baglami. Yoksa bos string."""

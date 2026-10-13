@@ -137,6 +137,11 @@ export function RunDetail() {
             </div>
             <div className="text-sm font-semibold">{u.message}</div>
             <div className="text-xs text-muted">Yazar: {u.author || "?"}</div>
+            {Object.entries(u.jira_people || {}).map(([tid, p]) => (
+              <div key={tid} className="text-xs text-muted">
+                Jira {tid} · oluşturan: {p.creator || "?"} · atanan: {p.assignee || "?"}
+              </div>
+            ))}
             {u.review_comment && (
               <div className="text-xs rounded-md p-2" style={{ background: "#0b1326", color: "#c7c4d7" }}>
                 {u.review_comment}

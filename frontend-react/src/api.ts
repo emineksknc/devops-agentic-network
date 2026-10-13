@@ -55,6 +55,7 @@ export interface CommitUnit {
   jira_ids: string[];
   review_status?: string | null;
   review_comment?: string | null;
+  jira_people?: Record<string, { assignee?: string; creator?: string }>;
 }
 
 export interface JiraAction {

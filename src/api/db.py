@@ -135,6 +135,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
         "policies": ["github_conn_id", "jira_conn_id"],
         "connections": ["provider", "model", "temperature", "max_tokens", "webhook_secret"],
         "jira_actions": ["target_status"],
+        "commit_units": ["jira_people"],
     }.items():
         have = cols(table)
         for col in wanted:
