@@ -26,6 +26,11 @@ class ChatProvider:
 
 
 class OllamaProvider(ChatProvider):
+    # Baglam penceresi: Ollama varsayilani (4096 token) buyuk diff'leri sessizce buduyor.
+    # 8192: gozlenen en buyuk diff (~15K karakter ≈ 5K token + talimat ~1K) tam sigar;
+    # 12B/14B modellerde 12GB VRAM'i asmaz (KV tasmasi yavaslatir, cökertmez).
+    NUM_CTX = 8192
+
     def __init__(self, host: str = "http://localhost:11434"):
         self.host = (host or "http://localhost:11434").rstrip("/")
 
@@ -39,7 +44,8 @@ class OllamaProvider(ChatProvider):
         kwargs: Dict[str, Any] = {
             "model": model,
             "messages": messages,
-            "options": {"temperature": temperature, "num_predict": max_tokens},
+            "options": {"temperature": temperature, "num_predict": max_tokens,
+                        "num_ctx": self.NUM_CTX},
         }
         if json_mode:
             kwargs["format"] = "json"

@@ -15,7 +15,9 @@ plan (LLM, sadece karar) -> github -> reviewer -> jira -> reporter
   Cikti katmanli parse edilir (duz JSON -> `{...}` blogu -> alan regex -> anahtar kelime).
   Bilet baglami varsa hukum ucludur: PASSED / FAILED / MISMATCH (temiz kod ama
   biletle alakasiz). MISMATCH kapilarda FAILED gibi davranir (onaya duser, bultene girmez).
-* Buyuk diff'ler prompt icin kisaltilir (12k karakter); dosya listesi tam korunur.
+* Diff'ler prompt'a TAM boyutta girer (kirpma yok); baglam penceresi Ollama
+  provider'da `num_ctx=8192` ile acilir. Dosya listesi diff'ten regex ile
+  garantilenir (model doldurmasa bile).
 
 ## Baglantilar (connections)
 

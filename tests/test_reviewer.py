@@ -62,3 +62,24 @@ def test_empty_analysis_is_honest_fail_closed():
     out = asyncio.run(r.run("t", context={"code_changes": DIFF}))
     assert out["review_status"] == "FAILED"
     assert "2 deneme" in out["review_comment"]
+
+
+def test_large_diff_is_not_truncated():
+    # Kirpma kaldirildi: 15K diff'in son satiri bile prompt'a girmeli.
+    seen = {}
+
+    class SpyLLM(FakeLLM):
+        async def generate_response(self, *a, **k):
+            seen.setdefault("prompts", []).append(a[1] if len(a) > 1 else "")
+            return await super().generate_response(*a, **k)
+
+    big = "--- Dosya: app.ts ---\n" + "+const x = 1;\n" * 1200 + "+SONSATIR=1;\n"
+    assert len(big) > 16000
+    r = ReviewerAgent(model_client=SpyLLM([
+        ANALIZ,
+        '{"review_status": "PASSED", "review_comment": "Tamam."}',
+    ]))
+    out = asyncio.run(r.run("t", context={"code_changes": big}))
+    assert out["review_status"] == "PASSED"
+    assert any("SONSATIR" in p for p in seen["prompts"])
+    assert not any("kisaltildi" in p for p in seen["prompts"])
