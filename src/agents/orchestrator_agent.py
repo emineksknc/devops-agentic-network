@@ -50,7 +50,9 @@ class OrchestratorAgent(BaseAgent):
         github_conn = conns.get("github") or {}
         jira_conn = conns.get("jira") or {}
         llm_conn = conns.get("llm") or {}
-        self._connections = {"github": github_conn, "jira": jira_conn, "llm": llm_conn}
+        self._connections = {"github": github_conn, "jira": jira_conn, "llm": llm_conn,
+                             # Akis ici callback'ler (orn. run timeline event'leri) dusurulmemeli
+                             "emit": conns.get("emit")}
         # Politika projesi (orn. TTA) baglanti varsayilanini ezer
         ticket_project = conns.get("ticket_project") or jira_conn.get("project_key") or ""
         gates = (conns.get("gates") or {})
