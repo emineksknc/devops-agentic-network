@@ -26,7 +26,7 @@ async def list_models(conn_id: str = "", provider: str = "") -> list[dict]:
         known = {
             "openai": ["gpt-4o-mini", "gpt-4o", "o4-mini"],
             "anthropic": ["claude-sonnet-4-5", "claude-haiku-4-5"],
-            "gemini": ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-pro"],
+            "gemini": ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-4-argon"],
         }
         return [{"name": m, "source": "known"} for m in known.get(provider, [])]
     try:

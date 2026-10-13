@@ -56,14 +56,14 @@ def test_chat_request_shape_and_parse(monkeypatch):
     monkeypatch.setattr(httpx, "AsyncClient", _Client)
     _Client.response = _Resp(200, {"candidates": [{"content": {"parts": [{"text": '{"review_status": "PASSED"}'}]}}]})
     p = GeminiProvider(api_key="k")
-    out = asyncio.run(p.chat(model="gemini-2.0-flash",
+    out = asyncio.run(p.chat(model="gemini-3.8-flash",
                              messages=[{"role": "system", "content": "s"},
                                        {"role": "user", "content": "u"},
                                        {"role": "assistant", "content": "a"}],
                              json_mode=True))
     assert out == '{"review_status": "PASSED"}'
     kw = _Client.last_kwargs
-    assert kw["url"].endswith("/v1beta/models/gemini-2.0-flash:generateContent")
+    assert kw["url"].endswith("/v1beta/models/gemini-3.8-flash:generateContent")
     assert kw["headers"]["x-goog-api-key"] == "k"
     assert kw["json"]["system_instruction"]["parts"][0]["text"] == "s"
     assert [c["role"] for c in kw["json"]["contents"]] == ["user", "model"]
@@ -75,7 +75,7 @@ def test_api_error_is_fail_closed(monkeypatch):
     _Client.response = _Resp(400, {"error": {"message": "API key not valid"}})
     p = GeminiProvider(api_key="k")
     with pytest.raises(ValueError, match="API key not valid"):
-        asyncio.run(p.chat(model="gemini-2.0-flash",
+        asyncio.run(p.chat(model="gemini-3.8-flash",
                            messages=[{"role": "user", "content": "u"}]))
 
 
@@ -84,5 +84,5 @@ def test_empty_response_raises(monkeypatch):
     _Client.response = _Resp(200, {"candidates": []})
     p = GeminiProvider(api_key="k")
     with pytest.raises(ValueError):
-        asyncio.run(p.chat(model="gemini-2.0-flash",
+        asyncio.run(p.chat(model="gemini-3.8-flash",
                            messages=[{"role": "user", "content": "u"}]))

@@ -136,7 +136,7 @@ class GeminiProvider(ChatProvider):
         self.base_url = (base_url or "https://generativelanguage.googleapis.com").rstrip("/")
 
     async def chat(self, *, model, messages, temperature=0.3, max_tokens=2048, json_mode=False) -> str:
-        name = (model or "gemini-2.0-flash").strip()
+        name = (model or "gemini-3.8-flash").strip()
         if name.startswith("models/"):
             name = name[len("models/"):]
         system = "\n".join(m["content"] for m in messages if m["role"] == "system")
