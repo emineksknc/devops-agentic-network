@@ -24,7 +24,8 @@ bos DB bos envanterle acilir, herkes baglantisini UI/API ile ekler.
 * GitHub: `Bearer` auth (classic + fine-grained PAT uyumu). Acik secilmis
   baglantida bos token = anonim erisim (env'ye dusmez).
 * Jira: ticket varligi (`ticket_exists`) + hedef status override (`target_status`).
-* LLM provider'lar (`src/core/providers.py`): `ollama | openai | anthropic`.
+* LLM provider'lar (`src/core/providers.py`): `ollama | openai | anthropic | gemini`
+  (gemini = Google AI Studio'ya dogrudan Generative Language API baglantisi).
   Tum alt ajanlar run'in LLM baglantisini paylasir. Model kayipsa hata,
   kurulu model listesiyle birlikte doner.
 

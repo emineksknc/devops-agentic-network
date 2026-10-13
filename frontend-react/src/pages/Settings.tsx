@@ -227,6 +227,7 @@ export function Settings() {
                   <option value="ollama">ollama</option>
                   <option value="openai">openai</option>
                   <option value="anthropic">anthropic</option>
+                  <option value="gemini">gemini (Google)</option>
                 </select>
               </Field>
               <Field label={`Model${models.length ? ` (${models.length} kurulu)` : ""}`}>

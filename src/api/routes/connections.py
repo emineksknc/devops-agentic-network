@@ -144,6 +144,15 @@ async def test_connection(conn_id: str) -> dict:
                     ok = resp.status_code == 200
                     return {"ok": ok, "status": resp.status_code,
                             "detail": "anahtar gecerli" if ok else resp.text[:200]}
+                if provider == "gemini":
+                    base = (r["base_url"] or "https://generativelanguage.googleapis.com").rstrip("/")
+                    resp = await client.get(f"{base}/v1beta/models",
+                                            headers={"x-goog-api-key": r["token"]})
+                    if resp.status_code != 200:
+                        return {"ok": False, "status": resp.status_code, "detail": resp.text[:200]}
+                    names = [m.get("name", "") for m in resp.json().get("models", [])]
+                    return {"ok": True, "status": 200,
+                            "detail": f"anahtar gecerli ({len(names)} model listelendi)"}
                 return {"ok": False, "status": 0, "detail": f"{provider} icin otomatik test yok"}
     except Exception as e:
         return {"ok": False, "status": 0, "detail": f"erisilemedi: {e}"}

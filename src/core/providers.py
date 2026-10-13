@@ -1,6 +1,7 @@
 """Pluggable LLM provider'lar. Yeni bagimlilik yok (httpx + mevcut ollama paketi).
 Desteklenenler: ollama (local), openai (+ base_url override ile Azure/custom),
-anthropic. Anahtar yoksa/yanlissa fail-closed davranis korunur: hata
+anthropic, gemini (Google AI Studio, dogrudan Generative Language API).
+Anahtar yoksa/yanlissa fail-closed davranis korunur: hata
 yukari firlatilir, LLMClient fallback string'e doner.
 """
 import logging
@@ -120,8 +121,62 @@ class AnthropicProvider(ChatProvider):
         return "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
 
 
+class GeminiProvider(ChatProvider):
+    """Google AI Studio (Generative Language API), dogrudan baglanti.
+
+    Kimlik: AI Studio API anahtari (x-goog-api-key basligi).
+    Roller: system -> system_instruction, assistant -> model.
+    Bos/hatali yanit yukari firlatilir (fail-closed korunur).
+    """
+
+    def __init__(self, api_key: str, base_url: str = "https://generativelanguage.googleapis.com"):
+        if not api_key:
+            raise ValueError("Gemini provider icin API anahtari sart (AI Studio).")
+        self.api_key = api_key
+        self.base_url = (base_url or "https://generativelanguage.googleapis.com").rstrip("/")
+
+    async def chat(self, *, model, messages, temperature=0.3, max_tokens=2048, json_mode=False) -> str:
+        name = (model or "gemini-2.0-flash").strip()
+        if name.startswith("models/"):
+            name = name[len("models/"):]
+        system = "\n".join(m["content"] for m in messages if m["role"] == "system")
+        contents = [
+            {"role": "model" if m["role"] == "assistant" else "user",
+             "parts": [{"text": m["content"]}]}
+            for m in messages if m["role"] != "system" and (m.get("content") or "").strip()
+        ]
+        if not contents:
+            raise ValueError("Gemini'ye gonderilecek kullanici mesaji yok.")
+        body: Dict[str, Any] = {
+            "contents": contents,
+            "generationConfig": {"temperature": temperature, "maxOutputTokens": max_tokens},
+        }
+        if system.strip():
+            body["system_instruction"] = {"parts": [{"text": system}]}
+        if json_mode:
+            body["generationConfig"]["responseMimeType"] = "application/json"
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post(
+                f"{self.base_url}/v1beta/models/{name}:generateContent",
+                json=body,
+                headers={"x-goog-api-key": self.api_key, "Content-Type": "application/json"},
+            )
+            if resp.status_code != 200:
+                try:
+                    detail = resp.json().get("error", {}).get("message", resp.text[:200])
+                except Exception:
+                    detail = resp.text[:200]
+                raise ValueError(f"Gemini API hatasi ({resp.status_code}): {detail}")
+            data = resp.json()
+        parts = (((data.get("candidates") or [{}])[0].get("content") or {}).get("parts") or [])
+        text = "".join(p.get("text", "") for p in parts if isinstance(p, dict))
+        if not text.strip():
+            raise ValueError("Gemini bos yanit dondu.")
+        return text
+
+
 def build_provider(name: str, connection: Dict[str, Any], settings_obj) -> ChatProvider:
-    """name: ollama | openai | anthropic. Baglanti degerleri env'nin onune gecer."""
+    """name: ollama | openai | anthropic | gemini. Baglanti degerleri env'nin onune gecer."""
     c = connection or {}
     name = (name or (c.get("provider") or getattr(settings_obj, "LLM_PROVIDER", "ollama"))).lower()
     if name == "openai":
@@ -133,5 +188,10 @@ def build_provider(name: str, connection: Dict[str, Any], settings_obj) -> ChatP
         return AnthropicProvider(
             api_key=c.get("token") or getattr(settings_obj, "LLM_API_KEY", ""),
             base_url=c.get("base_url") or "https://api.anthropic.com",
+        )
+    if name == "gemini":
+        return GeminiProvider(
+            api_key=c.get("token") or getattr(settings_obj, "LLM_API_KEY", ""),
+            base_url=c.get("base_url") or "https://generativelanguage.googleapis.com",
         )
     return OllamaProvider(host=c.get("base_url") or getattr(settings_obj, "OLLAMA_HOST", "http://localhost:11434"))
