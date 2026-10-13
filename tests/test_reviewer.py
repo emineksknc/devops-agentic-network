@@ -1,9 +1,11 @@
-"""Reviewer kararliligi: gerekcesiz FAILED retry, cift bozukta durust fail-closed."""
+"""Reviewer kararliligi: iki asamali akis (analiz -> hukum).
+Siralama: [analiz, hukum1, hukum2?]."""
 import asyncio
 
 from src.agents.reviewer_agent import ReviewerAgent
 
 DIFF = "--- Dosya: app.ts ---\n+const x = 1;"
+ANALIZ = "Kodda calisan mantik yok, sadece sabit. Secret gorulmedi."
 
 
 class FakeLLM:
@@ -18,16 +20,17 @@ class FakeLLM:
 
 def test_reasonless_failed_retries_to_passed():
     r = ReviewerAgent(model_client=FakeLLM([
+        ANALIZ,
         '{"review_status": "FAILED", "affected_file": null, "affected_symbol": null, "review_comment": ""}',
         '{"review_status": "PASSED", "affected_file": null, "affected_symbol": null, "review_comment": "Sabit."}',
     ]))
     out = asyncio.run(r.run("t", context={"code_changes": DIFF}))
     assert out["review_status"] == "PASSED"
-    assert r.llm.calls == 2
+    assert r.llm.calls == 3
 
 
 def test_double_garbage_is_honest_fail_closed():
-    r = ReviewerAgent(model_client=FakeLLM(["bozuk", "yine bozuk"]))
+    r = ReviewerAgent(model_client=FakeLLM([ANALIZ, "bozuk", "yine bozuk"]))
     out = asyncio.run(r.run("t", context={"code_changes": DIFF}))
     assert out["review_status"] == "FAILED"
     assert "2 deneme" in out["review_comment"]
@@ -35,6 +38,7 @@ def test_double_garbage_is_honest_fail_closed():
 
 def test_invalid_status_retries():
     r = ReviewerAgent(model_client=FakeLLM([
+        ANALIZ,
         '{"review_status": "BELKI"}',
         '{"review_status": "PASSED", "review_comment": "Temiz."}',
     ]))
@@ -43,10 +47,18 @@ def test_invalid_status_retries():
 
 
 def test_prose_wrapped_json_is_parsed():
-    # qwen tarzi: aciklama + JSON karisimi
+    # qwen tarzi: aciklama + JSON karisimi (hukum adiminda)
     r = ReviewerAgent(model_client=FakeLLM([
+        ANALIZ,
         'Analiz tamamlandi. {"review_status": "PASSED", "review_comment": "Sabit degisikligi."} tesekkurler.',
     ]))
     out = asyncio.run(r.run("t", context={"code_changes": DIFF}))
     assert out["review_status"] == "PASSED"
     assert "Sabit" in out["review_comment"]
+
+
+def test_empty_analysis_is_honest_fail_closed():
+    r = ReviewerAgent(model_client=FakeLLM(["", ""]))
+    out = asyncio.run(r.run("t", context={"code_changes": DIFF}))
+    assert out["review_status"] == "FAILED"
+    assert "2 deneme" in out["review_comment"]

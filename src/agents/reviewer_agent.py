@@ -102,15 +102,36 @@ class ReviewerAgent(BaseAgent):
 
         last_raw = ""
         status, affected_file, affected_symbol, raw_comment = "FAILED", None, None, ""
-        for attempt in (1, 2):  # bozuk/eksik ciktiya tek retry
+        analysis = ""
+        try:
+            # ADIM 1: serbest teknik analiz (modelin guclu yani, format baskisi yok)
+            analysis = await self.llm.generate_response(
+                "Sen kidemli bir DevOps guvenlik denetcisisin. Kodu teknik, kisa ve somut analiz edersin.",
+                "Asagidaki kod diff'ini GuVENLIK (hardcoded sifre/token/secret) ve KALITE "
+                "(bariz mantik hatasi, sonsuz dongu, tehlikeli operasyon) acisindan incele. "
+                "Bulursan HANGI dosyada HANGI satir oldugunu yaz. Temizse neyi kontrol ettigini yaz. "
+                "En fazla 8 cumle, Turkce.\n\n" + prompt_diff,
+                trace_name="reviewer.analyze",
+            )
+            if not (analysis or "").strip():
+                raise ValueError("analiz bos dondu")
+        except Exception as e:
+            logger.warning(f"Reviewer analiz adimi basarisiz: {e}")
+            analysis = ""
+
+        for attempt in (1, 2):  # hukmu cikartma: kisa ve deterministik gorev
             try:
+                if not analysis.strip():
+                    raise ValueError("analiz uretilemedi")
                 llm_response = await self.llm.generate_response(
                     self.system_prompt,
-                    review_prompt if attempt == 1 else (
-                        review_prompt + "\n\nONCEKI YANITIN GECERSIZDI, SADECE JSON DON:\n" + last_raw[:500]
-                    ),
+                    "Asagidaki KOD ANALIZINI hukme cevir. Analizde SOMUT risk (dosya+satir) varsa FAILED, "
+                    "yoksa PASSED. SADECE su JSON'u don, baska hicbir sey yazma:\n"
+                    '{"review_status": "PASSED veya FAILED", "affected_file": "dosya adi veya null", '
+                    '"affected_symbol": "ilgili satir veya null", "review_comment": "1-2 cumle Turkce gerekce"}\n\n'
+                    "ANALIZ:\n" + analysis[:2000],
                     response_format="json",
-                    trace_name="reviewer.analyze",
+                    trace_name="reviewer.verdict",
                 )
                 last_raw = llm_response
 
