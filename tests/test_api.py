@@ -108,9 +108,10 @@ def test_run_detail_with_events(client):
 
     with dbmod.connect() as conn:
         conn.execute(
-            "INSERT INTO runs (id, created_at, trigger, repo, user_goal, status, dry_run)"
-            " VALUES (?,?,?,?,?,?,?)",
-            ("evtest", "2026-01-01T00:00:00+00:00", "api", "org/demo", "", "success", 1),
+            "INSERT INTO runs (id, created_at, trigger, repo, user_goal, status, dry_run,"
+            " llm_provider, llm_model) VALUES (?,?,?,?,?,?,?,?,?)",
+            ("evtest", "2026-01-01T00:00:00+00:00", "api", "org/demo", "", "success", 1,
+             "ollama", "qwen3:14b"),
         )
         conn.execute(
             "INSERT INTO run_events (run_id, created_at, node, level, message) VALUES (?,?,?,?,?)",
@@ -121,3 +122,9 @@ def test_run_detail_with_events(client):
     body = r.json()
     assert len(body["events"]) == 1
     assert body["events"][0]["node"] == "plan"
+    # LLM muhrü listede ve detayda doner
+    assert body["llm_provider"] == "ollama"
+    assert body["llm_model"] == "qwen3:14b"
+    listed = client.get("/api/runs").json()
+    row = next(x for x in listed if x["run_id"] == "evtest")
+    assert row["llm_model"] == "qwen3:14b"

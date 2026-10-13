@@ -57,8 +57,10 @@ async def execute_run(
             "fail": policy.get("on_fail_transition") or "Blocked",
         }
         conn.execute(
-            "UPDATE runs SET status='running', dry_run=?, github_conn_id=?, jira_conn_id=?, llm_conn_id=? WHERE id=?",
-            (1 if eff_dry else 0, gh_conn.get("id", ""), ji_conn.get("id", ""), ll_conn.get("id", ""), run_id),
+            "UPDATE runs SET status='running', dry_run=?, github_conn_id=?, jira_conn_id=?, llm_conn_id=?,"
+            " llm_provider=?, llm_model=? WHERE id=?",
+            (1 if eff_dry else 0, gh_conn.get("id", ""), ji_conn.get("id", ""), ll_conn.get("id", ""),
+             (ll_conn.get("provider") or "ollama"), (ll_conn.get("model") or ""), run_id),
         )
     try:
         from datetime import datetime, timezone as _tz
@@ -168,6 +170,8 @@ async def list_runs(repo: str = "", status: str = "") -> list[RunOut]:
         RunOut(
             run_id=r["id"], repo=r["repo"], status=r["status"], dry_run=bool(r["dry_run"]),
             blocked_count=r["blocked_count"], commit_count=r["commit_count"], created_at=r["created_at"],
+            llm_provider=r["llm_provider"] if "llm_provider" in r.keys() else "",
+            llm_model=r["llm_model"] if "llm_model" in r.keys() else "",
         )
         for r in rows
     ]
@@ -185,6 +189,7 @@ async def get_run(run_id: str) -> RunDetailOut:
     return RunDetailOut(
         run_id=r["id"], repo=r["repo"], status=r["status"], dry_run=bool(r["dry_run"]),
         created_at=r["created_at"], final_report=r.get("final_report"), error=r.get("error"),
+        llm_provider=r.get("llm_provider") or "", llm_model=r.get("llm_model") or "",
         commit_units=[
             CommitUnitOut(
                 sha=u["sha"], short_sha=u["short_sha"], message=u["message"], author=u["author"],

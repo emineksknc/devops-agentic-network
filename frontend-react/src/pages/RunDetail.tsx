@@ -65,6 +65,11 @@ export function RunDetail() {
         <span className="text-xs text-muted">
           {run.repo} · {timeAgo(run.created_at)}
         </span>
+        {(run.llm_model || run.llm_provider) && (
+          <span className="text-xs font-mono text-muted">
+            {run.llm_provider ? `${run.llm_provider} · ` : ""}{run.llm_model || "?"}
+          </span>
+        )}
       </div>
 
       {run.status === "pending_approval" && (

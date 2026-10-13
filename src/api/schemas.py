@@ -21,6 +21,8 @@ class RunOut(BaseModel):
     blocked_count: int = 0
     commit_count: int = 0
     created_at: str
+    llm_provider: str = ""
+    llm_model: str = ""
 
 
 class CommitUnitOut(BaseModel):
@@ -59,6 +61,8 @@ class RunDetailOut(BaseModel):
     status: str
     dry_run: bool
     created_at: str
+    llm_provider: str = ""
+    llm_model: str = ""
     final_report: Optional[str] = None
     error: Optional[str] = None
     commit_units: list[CommitUnitOut] = []

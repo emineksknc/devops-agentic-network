@@ -43,6 +43,8 @@ export interface Run {
   blocked_count: number;
   commit_count: number;
   created_at: string;
+  llm_provider?: string;
+  llm_model?: string;
 }
 
 export interface CommitUnit {

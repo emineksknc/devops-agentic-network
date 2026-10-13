@@ -146,6 +146,11 @@ export function Runs() {
                 <StatusBadge status={r.status} />
               </div>
               <div className="text-sm font-semibold truncate">{r.repo}</div>
+              {(r.llm_model || r.llm_provider) && (
+                <div className="text-xs font-mono text-muted truncate">
+                  {r.llm_provider ? `${r.llm_provider} · ` : ""}{r.llm_model || "?"}
+                </div>
+              )}
               <div className="flex items-center justify-between pt-2 text-xs text-muted">
                 <span>
                   {r.commit_count} commit ·{" "}
