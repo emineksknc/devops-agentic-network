@@ -8,6 +8,28 @@ from src.core.llm_client import LLMClient
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("JiraAgent")
 
+def adf_to_text(node: Any, limit: int = 2000) -> str:
+    """Atlassian Document Format (Jira aciklama) -> duz metin. Kapsam karsilastirmasi icin."""
+    parts: list[str] = []
+
+    def walk(n: Any) -> None:
+        if isinstance(n, dict):
+            t = n.get("text")
+            if isinstance(t, str) and t.strip():
+                parts.append(t.strip())
+            for v in n.get("content", []) or []:
+                walk(v)
+        elif isinstance(n, list):
+            for v in n:
+                walk(v)
+        elif isinstance(n, str) and n.strip():
+            parts.append(n.strip())
+
+    walk(node)
+    text = " ".join(parts)
+    return text[:limit] if len(text) > limit else text
+
+
 class JiraAgent(BaseAgent):
     def __init__(self, name: str = "JiraAgent", model_client: Any = None, connection: Dict[str, Any] = None):
         super().__init__(name, model_client)
@@ -18,6 +40,7 @@ class JiraAgent(BaseAgent):
         self.email = c.get("email") if explicit else (c.get("email") or settings.JIRA_USER_EMAIL)
         self.token = c.get("token") if explicit else (c.get("token") or settings.JIRA_API_TOKEN)
         self.project_key = c.get("project_key") or settings.JIRA_PROJECT_KEY
+        self._issue_cache: Dict[str, Any] = {}  # run icinde bilet tekrar okunmaz
         self.register_tool("add_comment_to_ticket", self.add_comment_to_ticket)
         self.register_tool("transition_ticket_status", self.transition_ticket_status)
 
@@ -28,35 +51,53 @@ class JiraAgent(BaseAgent):
         # settings.JIRA_DOMAIN sonunda "/" olsa bile çift slash oluşmasını engeller
         return self.base_url_cfg.rstrip("/")
 
-    async def ticket_exists(self, ticket_id: str) -> bool:
-        """
-        🛡️ GUARDRAIL: İşlem yapmadan önce biletin gerçekten Jira'da var olduğunu doğrular.
-        Bu, GitHubAgent'ın LLM fallback yolunun (semantik bilet çıkarımı) olası bir
-        halüsinasyon sonucu var olmayan bir bilet numarası üretmesine karşı korur.
-        """
-        url = f"{self._base_url()}/rest/api/3/issue/{ticket_id}?fields=key"
+    async def get_issue(self, ticket_id: str) -> dict | None:
+        """Biletin ozet + aciklamasini doner (kapsam karsilastirmasi icin).
+        Yoksa/erisilemezse None (fail-closed: yok say, cökertme)."""
+        if ticket_id in self._issue_cache:
+            return self._issue_cache[ticket_id]
+        url = f"{self._base_url()}/rest/api/3/issue/{ticket_id}?fields=summary,description"
         headers = {"Accept": "application/json"}
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.get(url, headers=headers, auth=self._get_auth())
                 if response.status_code == 200:
-                    return True
-                elif response.status_code == 404:
+                    data = response.json()
+                    self._issue_cache[ticket_id] = data
+                    return data
+                if response.status_code == 404:
                     logger.info(f"ℹ️ {ticket_id} Jira'da bulunamadı (404) - gerçekten mevcut değil.")
-                    return False
-                else:
-                    logger.warning(
-                        f"⚠️ {ticket_id} doğrulanırken beklenmeyen durum kodu: "
-                        f"{response.status_code} - {response.text[:200]}"
-                    )
-                    return False
+                    return None
+                logger.warning(
+                    f"⚠️ {ticket_id} okunurken beklenmeyen durum kodu: "
+                    f"{response.status_code} - {response.text[:200]}"
+                )
+                return None
         except Exception as e:
-            # 🔍 Teşhis için tam hata tipini ve mesajını logluyoruz (str(e) bazen boş kalabiliyor)
             logger.error(
-                f"❌ Jira Bağlantı Hatası (Bilet Doğrulama) [{type(e).__name__}]: {repr(e)}"
+                f"❌ Jira Bağlantı Hatası (Bilet Okuma) [{type(e).__name__}]: {repr(e)}"
             )
-            # Bağlantı hatasında da güvenli tarafta kalıyoruz: bilet yok say, işlem yapma
-            return False
+            return None
+
+    async def get_issue_text(self, ticket_id: str) -> str:
+        """'OZET — aciklama' seklinde tek satirlik bilet baglami. Yoksa bos string."""
+        issue = await self.get_issue(ticket_id)
+        if not issue:
+            return ""
+        fields = issue.get("fields", {}) or {}
+        summary = (fields.get("summary") or "").strip()
+        desc = adf_to_text(fields.get("description"))
+        text = f"{summary} — {desc}" if summary and desc else (summary or desc)
+        return text.strip()
+
+    async def ticket_exists(self, ticket_id: str) -> bool:
+        """
+        🛡️ GUARDRAIL: İşlem yapmadan önce biletin gerçekten Jira'da var olduğunu doğrular.
+        Bu, GitHubAgent'ın LLM fallback yolunun (semantik bilet çıkarımı) olası bir
+        halüsinasyon sonucu var olmayan bir bilet numarası üretmesine karşı korur.
+        Tek okuma yolu (get_issue) uzerinden gecer, run ici onbellegin paylasilir.
+        """
+        return (await self.get_issue(ticket_id)) is not None
 
     async def add_comment_to_ticket(self, ticket_id: str, comment_text: str) -> bool:
         url = f"{self._base_url()}/rest/api/3/issue/{ticket_id}/comment"

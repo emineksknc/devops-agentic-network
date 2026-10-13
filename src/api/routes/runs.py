@@ -154,7 +154,7 @@ async def create_run(body: RunCreate, background: BackgroundTasks) -> RunOut:
 async def list_runs(repo: str = "", status: str = "") -> list[RunOut]:
     q = """SELECT r.*,
              (SELECT COUNT(*) FROM commit_units c WHERE c.run_id=r.id) AS commit_count,
-             (SELECT COUNT(*) FROM commit_units c WHERE c.run_id=r.id AND c.review_status='FAILED') AS blocked_count
+             (SELECT COUNT(*) FROM commit_units c WHERE c.run_id=r.id AND c.review_status IN ('FAILED','MISMATCH')) AS blocked_count
            FROM runs r WHERE 1=1"""
     args: list = []
     if repo:

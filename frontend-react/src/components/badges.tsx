@@ -9,6 +9,7 @@ const MAP: Record<string, [string, string]> = {
   planned: ["Planlandı", "#818cf8"],
   applied: ["Uygulandı", "#10b981"],
   skipped: ["Atlandı", "#f59e0b"],
+  mismatch: ["Eşleşmiyor", "#f59e0b"],
 };
 
 export function StatusBadge({ status }: { status?: string | null }) {

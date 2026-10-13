@@ -130,7 +130,7 @@ export function RunDetail() {
           <div key={u.sha || u.short_sha} className="card p-4 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-mono text-accent-soft">{u.short_sha}</span>
-              <StatusBadge status={u.review_status === "FAILED" ? "failed" : "success"} />
+              <StatusBadge status={u.review_status === "FAILED" ? "failed" : u.review_status === "MISMATCH" ? "mismatch" : "success"} />
               {(u.jira_ids || []).map((t) => (
                 <Chip key={t}>{t}</Chip>
               ))}

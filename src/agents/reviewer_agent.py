@@ -25,10 +25,12 @@ def _parse_review_response(raw: str):
             return str(obj.get("review_status", "") or "").upper(), (obj.get("review_comment") or "").strip(), obj
         except Exception:
             pass
-    m = re.search(r"review_status['\"]?\s*[:=]\s*['\"]?(PASSED|FAILED)", text, re.IGNORECASE)
+    m = re.search(r"review_status['\"]?\s*[:=]\s*['\"]?(PASSED|FAILED|MISMATCH)", text, re.IGNORECASE)
     if m:
         return m.group(1).upper(), text[:300], {}
     up = text.upper()
+    if "MISMATCH" in up and "PASSED" not in up and "FAILED" not in up:
+        return "MISMATCH", text[:300], {}
     if "FAILED" in up and "PASSED" not in up:
         return "FAILED", text[:300], {}
     if "PASSED" in up and "FAILED" not in up:
@@ -52,6 +54,9 @@ class ReviewerAgent(BaseAgent):
             context.get("diff") or
             ""
         )
+        # Jira bilet baglami (ozet + aciklama): graph reviewer_node doldurur.
+        # Yoksa kapsam karsilastirmasi yapilmaz, MISMATCH uretilemez.
+        ticket_context = (context.get("ticket_context") or "").strip()
 
         if not code_changes or not code_changes.strip():
             logger.warning("⚠️ ReviewerAgent'a analiz için herhangi bir kod değişikliği (diff) ulaşmadı.")
@@ -88,15 +93,24 @@ class ReviewerAgent(BaseAgent):
             "Ornek FAILED gerekcesi: \"+password = '12345' satirinda acik sifre var.\" "
             "Ornek PASSED gerekcesi: \"Degisiklikler yalnizca yapi/config dosyalarinda, calisan kod ve secret yok.\"\n\n"
             "Kod temiz ve güvenli görünüyorsa 'review_status' değerini 'PASSED' yap.\n\n"
+            + (
+                "KAPSAM KURALI (bilet baglami verildi): Asagidaki Jira bilet(ler)inin istedigi is ile diff'i karsilastir. "
+                "Kod temiz olsa bile biletin istedigi fonksiyonla ALAKASIZSA 'review_status' degerini 'MISMATCH' yap "
+                "ve review_comment'te biletin ne istedigini + kodun neden karsilamadigini yaz. "
+                "Bilet baglami YOKSA MISMATCH kullanma.\n\n"
+                if ticket_context else ""
+            ) +
             "⚠️ KESİN KURAL: Yanıtını SADECE ve SADECE aşağıdaki JSON formatında dön. Başka hiçbir açıklama veya metin yazma:\n"
             "{\n"
-            "  \"review_status\": \"PASSED\" veya \"FAILED\",\n"
+            "  \"review_status\": \"PASSED\", \"FAILED\""
+            + (" veya \"MISMATCH\"" if ticket_context else "") + ",\n"
             "  \"affected_file\": \"Riskin bulunduğu dosyanın TAM ADI (diff başlığındaki '--- Dosya: ... ---' "
             "değerinden aynen kopyala). PASSED ise veya risk belirli bir dosyaya ait değilse null yaz.\",\n"
             "  \"affected_symbol\": \"Riskle ilgili değişken/fonksiyon/satır kısa alıntısı. Yoksa null yaz.\",\n"
             "  \"review_comment\": \"1-2 cümlelik Türkçe teknik tespit. FAILED ise HANGI satirin NEDEN sorun oldugunu yaz, "
             "bossa birakma. PASSED ise neyi kontrol edip temiz buldugunu yaz.\"\n"
             "}\n\n"
+            + (f"Beklenen Is (Jira biletleri):\n{ticket_context[:2000]}\n\n" if ticket_context else "") +
             f"Denetlenecek Kod Değişiklikleri:\n{prompt_diff}"
         )
 
@@ -105,12 +119,21 @@ class ReviewerAgent(BaseAgent):
         analysis = ""
         try:
             # ADIM 1: serbest teknik analiz (modelin guclu yani, format baskisi yok)
-            analysis = await self.llm.generate_response(
-                "Sen kidemli bir DevOps guvenlik denetcisisin. Kodu teknik, kisa ve somut analiz edersin.",
+            analyze_user = (
                 "Asagidaki kod diff'ini GuVENLIK (hardcoded sifre/token/secret) ve KALITE "
                 "(bariz mantik hatasi, sonsuz dongu, tehlikeli operasyon) acisindan incele. "
                 "Bulursan HANGI dosyada HANGI satir oldugunu yaz. Temizse neyi kontrol ettigini yaz. "
-                "En fazla 8 cumle, Turkce.\n\n" + prompt_diff,
+                + (
+                    "Ayrica diff'in asagidaki Jira bilet(ler)inin istedigi isi karsilayip karsilamadigini degerlendir. "
+                    if ticket_context else ""
+                ) +
+                "En fazla 8 cumle, Turkce.\n\n"
+                + (f"Beklenen Is (Jira):\n{ticket_context[:1500]}\n\n" if ticket_context else "")
+                + prompt_diff
+            )
+            analysis = await self.llm.generate_response(
+                "Sen kidemli bir DevOps guvenlik denetcisisin. Kodu teknik, kisa ve somut analiz edersin.",
+                analyze_user,
                 trace_name="reviewer.analyze",
             )
             if not (analysis or "").strip():
@@ -126,8 +149,16 @@ class ReviewerAgent(BaseAgent):
                 llm_response = await self.llm.generate_response(
                     self.system_prompt,
                     "Asagidaki KOD ANALIZINI hukme cevir. Analizde SOMUT risk (dosya+satir) varsa FAILED, "
-                    "yoksa PASSED. SADECE su JSON'u don, baska hicbir sey yazma:\n"
-                    '{"review_status": "PASSED veya FAILED", "affected_file": "dosya adi veya null", '
+                    + (
+                        "risk yok ama kod Jira biletinin istedigi isle alakasizsa MISMATCH, "
+                        "risk yok ve is karsilaniyorsa PASSED. "
+                        if ticket_context else
+                        "yoksa PASSED. "
+                    ) +
+                    "SADECE su JSON'u don, baska hicbir sey yazma:\n"
+                    '{"review_status": "PASSED, FAILED'
+                    + (', MISMATCH' if ticket_context else '') +
+                    '", "affected_file": "dosya adi veya null", '
                     '"affected_symbol": "ilgili satir veya null", "review_comment": "1-2 cumle Turkce gerekce"}\n\n'
                     "ANALIZ:\n" + analysis[:2000],
                     response_format="json",
@@ -136,13 +167,14 @@ class ReviewerAgent(BaseAgent):
                 last_raw = llm_response
 
                 status, raw_comment, review_result = _parse_review_response(llm_response)
-                if status not in ("PASSED", "FAILED"):
+                allowed = ("PASSED", "FAILED", "MISMATCH") if ticket_context else ("PASSED", "FAILED")
+                if status not in allowed:
                     raise ValueError(f"anlasilamayan yanit: {last_raw[:120]!r}")
                 affected_file = review_result.get("affected_file")
                 affected_symbol = review_result.get("affected_symbol")
-                # Gerekcesiz FAILED yasak: yorumu bossa retry
-                if status == "FAILED" and not raw_comment:
-                    raise ValueError("FAILED gerekcesiz donduruldu")
+                # Gerekcesiz FAILED/MISMATCH yasak: yorumu bossa retry
+                if status in ("FAILED", "MISMATCH") and not raw_comment:
+                    raise ValueError(f"{status} gerekcesiz donduruldu")
                 break
             except Exception as e:
                 logger.warning(f"Reviewer deneme {attempt} basarisiz: {e}")

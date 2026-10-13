@@ -111,14 +111,27 @@ def build_graph(workers: Dict[str, Any]):
                 unit["review_status"] = "PASSED"
                 unit["review_comment"] = "Incelenecek kod degisikligi bulunamadi."
                 continue
-            r = await reviewer_worker.run("Review code quality", context={"code_changes": unit["code_changes"]})
+            # Kapsam karsilastirmasi: biletlerin istedigi is reviewer'a baglam verilir
+            ticket_lines = []
+            for tid in unit.get("jira_ids", []) or []:
+                try:
+                    txt = await jira_worker.get_issue_text(tid)
+                except Exception:
+                    txt = ""
+                if txt:
+                    ticket_lines.append(f"{tid}: {txt[:800]}")
+            ticket_context = "\n".join(ticket_lines)
+            r = await reviewer_worker.run("Review code quality", context={
+                "code_changes": unit["code_changes"],
+                "ticket_context": ticket_context,
+            })
             unit["review_status"] = r.get("review_status", "FAILED")
             unit["review_comment"] = r.get("review_comment", "")
             emit("reviewer", f"{unit.get('short_sha')}: {unit['review_status']}",
-                 "error" if unit["review_status"] == "FAILED" else "info")
-            if unit["review_status"] == "FAILED":
-                logger.warning("Commit %s kritik risk, ilgili biletler kilitlenecek.", unit.get("short_sha"))
-        blocked = any(u.get("review_status") == "FAILED" for u in units)
+                 "error" if unit["review_status"] in ("FAILED", "MISMATCH") else "info")
+            if unit["review_status"] in ("FAILED", "MISMATCH"):
+                logger.warning("Commit %s kritik risk/kapsam disi, ilgili biletler kilitlenecek.", unit.get("short_sha"))
+        blocked = any(u.get("review_status") in ("FAILED", "MISMATCH") for u in units)
         return {"commit_units": units, "review_passed": not blocked}
 
     async def jira_node(state: FlowState) -> Dict[str, Any]:
@@ -132,7 +145,8 @@ def build_graph(workers: Dict[str, Any]):
             if not unit.get("jira_ids"):
                 continue
             any_ticket = True
-            ok = unit.get("review_status", "PASSED") != "FAILED"
+            # Kapı: yalnizca PASSED dogrudan basari sayilir; FAILED ve MISMATCH onaya duser
+            ok = unit.get("review_status", "PASSED") == "PASSED"
             print(f"[Orkestrator] Graf dugumu: jira_agent (commit {unit.get('short_sha')} -> {unit['jira_ids']})")
             author_line = f"Yazar: {unit.get('author', 'bilinmiyor')} ({unit.get('short_sha', '')})\n"
             target = transitions.get("pass") if ok else transitions.get("fail")
@@ -168,7 +182,7 @@ def build_graph(workers: Dict[str, Any]):
             return {}
         print("[Orkestrator] Graf dugumu: reporter_agent")
         units = state.get("commit_units", []) or []
-        blocked_shas = {u["sha"] for u in units if u.get("review_status") == "FAILED"}
+        blocked_shas = {u["sha"] for u in units if u.get("review_status") in ("FAILED", "MISMATCH")}
         reportable = [c for c in raw_commits if c.get("sha") not in blocked_shas]
         if not reportable:
             logger.info("Tum commit'ler bloklu, raporlanacak degisiklik yok.")

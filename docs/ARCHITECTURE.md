@@ -13,6 +13,8 @@ plan (LLM, sadece karar) -> github -> reviewer -> jira -> reporter
   * Gerekcesiz FAILED yasaktir (retry), cift bozuk ciktida DURUST fail-closed mesaji doner.
 * Reviewer iki asamalidir: serbest teknik analiz -> hukum cikartma (kisa JSON).
   Cikti katmanli parse edilir (duz JSON -> `{...}` blogu -> alan regex -> anahtar kelime).
+  Bilet baglami varsa hukum ucludur: PASSED / FAILED / MISMATCH (temiz kod ama
+  biletle alakasiz). MISMATCH kapilarda FAILED gibi davranir (onaya duser, bultene girmez).
 * Buyuk diff'ler prompt icin kisaltilir (12k karakter); dosya listesi tam korunur.
 
 ## Baglantilar (connections)
