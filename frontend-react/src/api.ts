@@ -125,6 +125,8 @@ export interface JiraAction {
   transition_to?: string | null;
   transition_ok?: boolean | null;
   skipped_reason?: string | null;
+  approved_by?: string | null;
+  approved_at?: string | null;
 }
 
 export interface RunEvent {
@@ -176,6 +178,9 @@ export interface Connection {
   is_disabled?: boolean;
   created_at?: string;
   disabled_at?: string;
+  last_tested_at?: string;
+  last_latency_ms?: number;
+  last_test_ok?: boolean | null;
 }
 
 export interface AgentInfo {

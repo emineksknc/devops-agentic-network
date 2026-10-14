@@ -207,6 +207,45 @@ def test_run_list_verdict_flags(client):
     assert row["blocked_count"] == 2
 
 
+def test_test_endpoint_stamps_latency(client):
+    admin = _admin_headers(client)
+    body = {"name": "LL", "kind": "llm", "base_url": "http://127.0.0.1:9", "owner": "", "email": "",
+            "token": "", "project_key": "", "provider": "ollama", "model": "yok",
+            "temperature": 0.3, "max_tokens": 2048, "webhook_secret": "", "is_default": False}
+    cid = client.post("/api/connections", json=body, headers=admin).json()["id"]
+    out = client.post(f"/api/connections/{cid}/test", headers=admin).json()
+    assert "latency_ms" in out and out["latency_ms"] >= 0
+    row = next(x for x in client.get("/api/connections", headers=admin).json() if x["id"] == cid)
+    assert row["last_tested_at"] and row["last_test_ok"] is False
+
+
+def test_approve_records_identity(client):
+    from src.api import db as dbmod
+
+    admin = _admin_headers(client)
+    appr = _auth_headers(client, "onayci", "guclu-parola-2")
+    # onayci viewer gelir; admin approver yapar
+    users = client.get("/api/auth/users", headers=admin).json()
+    uid = next(u for u in users if u["username"] == "onayci")["id"]
+    client.put(f"/api/auth/users/{uid}", json={"role": "approver"}, headers=admin)
+    appr = _auth_headers(client, "onayci", "guclu-parola-2")
+    with dbmod.connect() as conn:
+        conn.execute(
+            "INSERT INTO runs (id, created_at, trigger, repo, user_goal, status, dry_run)"
+            " VALUES (?,?,?,?,?,?,?)",
+            ("onay", "2026-10-14T10:00:00+00:00", "api", "org/demo", "", "pending_approval", 1),
+        )
+        conn.execute(
+            "INSERT INTO jira_actions (run_id, commit_sha, ticket_id, review_passed, code_changes, state)"
+            " VALUES (?,?,?,?,?,?)",
+            ("onay", "abc", "TTA-1", 1, "diff", "planned"),
+        )
+    r = client.post("/api/runs/onay/approve", json={"approved": True}, headers=appr)
+    assert r.status_code == 200
+    acts = r.json()["jira_actions"]
+    assert acts[0]["approved_by"] == "onayci" and acts[0]["approved_at"]
+
+
 def test_connection_disable_hides_from_default(client):
     from src.api import db as dbmod
 

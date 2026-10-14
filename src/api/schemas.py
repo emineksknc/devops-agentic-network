@@ -49,6 +49,8 @@ class JiraActionOut(BaseModel):
     transition_to: Optional[str] = None
     transition_ok: Optional[bool] = None
     skipped_reason: Optional[str] = None
+    approved_by: str = ""
+    approved_at: str = ""
 
 
 class RunEventOut(BaseModel):
@@ -119,6 +121,9 @@ class ConnectionOut(ConnectionIn):
     is_disabled: bool = False
     created_at: str = ""
     disabled_at: str = ""
+    last_tested_at: str = ""
+    last_latency_ms: int = 0
+    last_test_ok: Optional[bool] = None
 
 
 class HealthOut(BaseModel):
@@ -137,6 +142,7 @@ class UserOut(BaseModel):
     username: str
     role: str
     created_at: str
+    last_login_at: str = ""
 
 
 class TokenOut(BaseModel):

@@ -192,6 +192,7 @@ export function RunDetail() {
               <StatusBadge status={a.state} />
               {a.transition_to && <span className="text-muted">→ {a.transition_to}</span>}
               {a.skipped_reason && <span style={{ color: "#f59e0b" }}>{a.skipped_reason}</span>}
+              {a.approved_by && <span className="text-muted">onaylayan: {a.approved_by}</span>}
             </div>
           ))}
         </div>

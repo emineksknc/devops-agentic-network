@@ -29,8 +29,9 @@ export function Settings() {
   const [models, setModels] = useState<{ name: string; source?: string }[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
   const [hasSecrets, setHasSecrets] = useState({ token: false, secret: false });
-  const [users, setUsers] = useState<{ id: string; username: string; role: string }[]>([]);
+  const [users, setUsers] = useState<{ id: string; username: string; role: string; last_login_at?: string }[]>([]);
   const [newUser, setNewUser] = useState({ username: "", password: "" });
+  const [connQuery, setConnQuery] = useState("");
   const [redact, setRedact] = useState(true);
 
   const load = useCallback(async () => {
@@ -46,7 +47,7 @@ export function Settings() {
     }
     // Kullanici listesi adminlere ozel; 403 yerse kart gizlenir
     try {
-      setUsers(await api.get<{ id: string; username: string; role: string }[]>("/api/auth/users"));
+      setUsers(await api.get<{ id: string; username: string; role: string; last_login_at?: string }[]>("/api/auth/users"));
     } catch {
       setUsers([]);
     }
@@ -170,15 +171,31 @@ export function Settings() {
           <h1 className="text-xl font-bold">Bağlantılar</h1>
           <p className="text-sm text-muted">Tokenlar maskeli saklanır, asla listelenmez.</p>
         </div>
-        {isAdmin() && (
-          <button className="btn-primary" onClick={openNew}>
-            + Yeni Bağlantı
-          </button>
-        )}
+        <div className="flex gap-2">
+          <input
+            className="input font-mono sm:max-w-xs"
+            placeholder="bağlantı ara…"
+            value={connQuery}
+            onChange={(e) => setConnQuery(e.target.value)}
+          />
+          {isAdmin() && (
+            <button className="btn-primary" onClick={openNew}>
+              + Yeni Bağlantı
+            </button>
+          )}
+        </div>
       </div>
 
       {groups.map(([kind, label]) => {
-        const rows = conns.filter((c) => c.kind === kind);
+        const q = connQuery.trim().toLowerCase();
+        const rows = conns.filter(
+          (c) =>
+            c.kind === kind &&
+            (!q ||
+              c.name.toLowerCase().includes(q) ||
+              c.id.toLowerCase().includes(q) ||
+              (c.model || "").toLowerCase().includes(q))
+        );
         const detail = (c: Connection) =>
           kind === "github"
             ? `${c.base_url} · ${c.owner}`
@@ -197,13 +214,14 @@ export function Settings() {
                     <th className="px-4 py-2 font-semibold">Detay</th>
                     <th className="px-4 py-2 font-semibold">Oluşturma</th>
                     <th className="px-4 py-2 font-semibold">Devre dışı</th>
+                    <th className="px-4 py-2 font-semibold">Son test</th>
                     <th className="px-4 py-2 font-semibold text-right">İşlemler</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-4 py-3 text-xs text-muted">
+                      <td colSpan={7} className="px-4 py-3 text-xs text-muted">
                         Kayıt yok.
                       </td>
                     </tr>
@@ -224,6 +242,18 @@ export function Settings() {
                       </td>
                       <td className="px-4 py-2 text-xs text-muted">
                         {c.disabled_at ? formatDateTime(c.disabled_at) : "—"}
+                      </td>
+                      <td className="px-4 py-2 text-xs text-muted">
+                        {c.last_tested_at ? (
+                          <>
+                            <span style={{ color: c.last_test_ok === false ? "#f87171" : "#34d399" }}>
+                              {c.last_test_ok === false ? "✗" : "✓"}
+                            </span>{" "}
+                            {c.last_latency_ms ?? 0}ms · {formatDateTime(c.last_tested_at)}
+                          </>
+                        ) : (
+                          "—"
+                        )}
                       </td>
                       <td className="px-4 py-2">
                         <div className="flex gap-3 justify-end">
@@ -275,6 +305,9 @@ export function Settings() {
           {users.map((u) => (
             <div key={u.id} className="flex items-center justify-between gap-2 text-sm">
               <span className="font-mono">{u.username}</span>
+              <span className="text-xs text-muted">
+                {u.last_login_at ? `son giriş ${formatDateTime(u.last_login_at)}` : "giriş yok"}
+              </span>
               <select
                 className="input sm:max-w-xs"
                 value={u.role}

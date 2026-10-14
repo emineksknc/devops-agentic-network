@@ -19,7 +19,8 @@ _USERNAME_RE = re.compile(r"^[a-zA-Z0-9_.@-]{3,32}$")
 
 
 def _to_out(r: dict) -> UserOut:
-    return UserOut(id=r["id"], username=r["username"], role=r["role"], created_at=r["created_at"])
+    return UserOut(id=r["id"], username=r["username"], role=r["role"],
+                   created_at=r["created_at"], last_login_at=r.get("last_login_at") or "")
 
 
 @router.post("/register", response_model=UserOut, status_code=201)
@@ -53,18 +54,28 @@ async def register(
 @router.get("/users", response_model=list[UserOut])
 async def list_users(_admin: dict = Depends(auth_core.require_roles("admin"))) -> list[UserOut]:
     with db.connect() as conn:
-        rows = conn.execute("SELECT id, username, role, created_at FROM users ORDER BY created_at").fetchall()
-    return [UserOut(id=r["id"], username=r["username"], role=r["role"], created_at=r["created_at"]) for r in rows]
+        rows = conn.execute("SELECT id, username, role, created_at, last_login_at FROM users ORDER BY created_at").fetchall()
+    return [UserOut(id=r["id"], username=r["username"], role=r["role"], created_at=r["created_at"],
+                    last_login_at=(r["last_login_at"] or "")) for r in rows]
 
 
 @router.post("/login", response_model=TokenOut)
 async def login(body: UserIn) -> TokenOut:
+    from datetime import datetime, timezone
+
     with db.connect() as conn:
         row = db.row_to_dict(conn.execute(
             "SELECT * FROM users WHERE username=?", (body.username,)).fetchone())
     if not row or not auth_core.verify_password(body.password, row["password_hash"]):
         raise HTTPException(401, "kullanici adi veya parola hatali")
     token = auth_core.mint_token(row["id"])
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        with db.connect() as conn:
+            conn.execute("UPDATE users SET last_login_at=? WHERE id=?", (now, row["id"]))
+    except Exception:
+        pass
+    row["last_login_at"] = now
     return TokenOut(token=token, user=_to_out(row))
 
 

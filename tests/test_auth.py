@@ -60,3 +60,10 @@ def test_only_admin_changes_roles(client):
     ok = client.put(f"/api/auth/users/{b['id']}", json={"role": "approver"}, headers=ha).json()
     assert ok["role"] == "approver"
     assert a["role"] == "admin"
+
+
+def test_login_stamps_last_login(client):
+    client.post("/api/auth/register", json={"username": "kurucu", "password": "guclu-parola-1"})
+    ta = client.post("/api/auth/login", json={"username": "kurucu", "password": "guclu-parola-1"}).json()["token"]
+    users = client.get("/api/auth/users", headers={"Authorization": f"Bearer {ta}"}).json()
+    assert users[0]["last_login_at"]

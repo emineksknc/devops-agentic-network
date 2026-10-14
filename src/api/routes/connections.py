@@ -26,6 +26,12 @@ def _num(row, key: str, default: float) -> float:
 def _to_out(r) -> ConnectionOut:
     # Token ASLA listeleme/get ile disari verilmez
     keys = set(r.keys())
+
+    def _tri(value):
+        # TEXT kolonlardaki 0/1 bayraklari: '0' string'i bool() ile True olur, dikkat
+        if value is None or value == "":
+            return None
+        return str(value) not in ("0", "False", "false")
     return ConnectionOut(
         id=r["id"], name=r["name"], kind=r["kind"], base_url=r["base_url"] or "",
         owner=r["owner"] or "", email=r["email"] or "",
@@ -40,6 +46,9 @@ def _to_out(r) -> ConnectionOut:
         is_disabled=bool(r["is_disabled"]) if "is_disabled" in keys else False,
         created_at=(r["created_at"] or "") if "created_at" in keys else "",
         disabled_at=(r["disabled_at"] or "") if "disabled_at" in keys else "",
+        last_tested_at=(r["last_tested_at"] or "") if "last_tested_at" in keys else "",
+        last_latency_ms=int(r["last_latency_ms"] or 0) if "last_latency_ms" in keys else 0,
+        last_test_ok=_tri(r["last_test_ok"]) if "last_test_ok" in keys else None,
     )
 
 
@@ -133,7 +142,11 @@ async def toggle_connection(conn_id: str, _admin: dict = Depends(require_roles("
 @router.post("/{conn_id}/test")
 async def test_connection(conn_id: str) -> dict:
     """Salt-okunur canlilik testi: secret'i dogrulamadan dokunmadan dener."""
+    import time
+
     import httpx
+
+    from datetime import datetime, timezone
 
     with db.connect() as conn:
         r = db.row_to_dict(conn.execute("SELECT * FROM connections WHERE id=?", (conn_id,)).fetchone())
@@ -142,6 +155,21 @@ async def test_connection(conn_id: str) -> dict:
     kind = r["kind"]
     # DB sifreli durur; canli deneme icin coz (maskeleme _to_out'ta ayri yol, etkilenmez)
     token = secrets_mod.decrypt(r["token"] or "")
+    t0 = time.perf_counter()
+
+    def finish(ok: bool, status: int, detail: str) -> dict:
+        ms = int((time.perf_counter() - t0) * 1000)
+        now = datetime.now(timezone.utc).isoformat()
+        try:
+            with db.connect() as conn:
+                conn.execute(
+                    "UPDATE connections SET last_tested_at=?, last_latency_ms=?, last_test_ok=? WHERE id=?",
+                    (now, ms, 1 if ok else 0, conn_id),
+                )
+        except Exception:
+            pass
+        return {"ok": ok, "status": status, "detail": detail, "latency_ms": ms}
+
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             if kind == "github":
@@ -151,43 +179,39 @@ async def test_connection(conn_id: str) -> dict:
                     headers={"Authorization": f"token {token}", "User-Agent": "DAN-test"},
                 )
                 ok = resp.status_code == 200
-                return {"ok": ok, "status": resp.status_code,
-                        "detail": "token gecerli" if ok else resp.text[:200]}
+                return finish(ok, resp.status_code, "token gecerli" if ok else resp.text[:200])
             if kind == "jira":
                 base = (r["base_url"] or "").rstrip("/")
                 resp = await client.get(f"{base}/rest/api/3/myself",
                                         auth=(r["email"], token))
                 ok = resp.status_code == 200
-                return {"ok": ok, "status": resp.status_code,
-                        "detail": "baglanti saglam" if ok else resp.text[:200]}
+                return finish(ok, resp.status_code, "baglanti saglam" if ok else resp.text[:200])
             if kind == "llm":
                 provider = (r["provider"] or "ollama").lower()
                 if provider == "ollama":
                     base = (r["base_url"] or "http://localhost:11434").rstrip("/")
                     resp = await client.get(f"{base}/api/tags")
                     if resp.status_code != 200:
-                        return {"ok": False, "status": resp.status_code, "detail": resp.text[:200]}
+                        return finish(False, resp.status_code, resp.text[:200])
                     names = [m.get("name", "") for m in resp.json().get("models", [])]
                     has = (r["model"] or "") in names
-                    return {"ok": True, "status": 200,
-                            "detail": f"{len(names)} model; secili '{r['model']}' " + ("kurulu" if has else "KURULU DEGIL")}
+                    return finish(True, 200,
+                                  f"{len(names)} model; secili '{r['model']}' " + ("kurulu" if has else "KURULU DEGIL"))
                 if provider == "openai":
                     base = (r["base_url"] or "https://api.openai.com/v1").rstrip("/")
                     resp = await client.get(f"{base}/models",
                                             headers={"Authorization": f"Bearer {token}"})
                     ok = resp.status_code == 200
-                    return {"ok": ok, "status": resp.status_code,
-                            "detail": "anahtar gecerli" if ok else resp.text[:200]}
+                    return finish(ok, resp.status_code, "anahtar gecerli" if ok else resp.text[:200])
                 if provider == "gemini":
                     base = (r["base_url"] or "https://generativelanguage.googleapis.com").rstrip("/")
                     resp = await client.get(f"{base}/v1beta/models",
                                             headers={"x-goog-api-key": token})
                     if resp.status_code != 200:
-                        return {"ok": False, "status": resp.status_code, "detail": resp.text[:200]}
+                        return finish(False, resp.status_code, resp.text[:200])
                     names = [m.get("name", "") for m in resp.json().get("models", [])]
-                    return {"ok": True, "status": 200,
-                            "detail": f"anahtar gecerli ({len(names)} model listelendi)"}
-                return {"ok": False, "status": 0, "detail": f"{provider} icin otomatik test yok"}
+                    return finish(True, 200, f"anahtar gecerli ({len(names)} model listelendi)")
+                return finish(False, 0, f"{provider} icin otomatik test yok")
     except Exception as e:
-        return {"ok": False, "status": 0, "detail": f"erisilemedi: {e}"}
-    return {"ok": False, "status": 0, "detail": "bilinmeyen tur"}
+        return finish(False, 0, f"erisilemedi: {e}")
+    return finish(False, 0, "bilinmeyen tur")

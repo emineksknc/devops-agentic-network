@@ -244,6 +244,8 @@ async def get_run(run_id: str) -> RunDetailOut:
                 transition_from=a["transition_from"], transition_to=a["transition_to"],
                 transition_ok=None if a["transition_ok"] is None else bool(a["transition_ok"]),
                 skipped_reason=a["skipped_reason"],
+                approved_by=(a["approved_by"] or "") if "approved_by" in a.keys() else "",
+                approved_at=(a["approved_at"] or "") if "approved_at" in a.keys() else "",
             )
             for a in actions
         ],
@@ -274,7 +276,8 @@ async def approve_run(
 
     if not body.approved:
         with db.connect() as conn:
-            conn.execute("UPDATE jira_actions SET state='skipped', skipped_reason='rejected_by_user' WHERE run_id=? AND state='planned'", (run_id,))
+            conn.execute("UPDATE jira_actions SET state='skipped', skipped_reason='rejected_by_user', approved_by=?, approved_at=? WHERE run_id=? AND state='planned'",
+                         (_approver.get("username", ""), _now(), run_id,))
             conn.execute("UPDATE runs SET status='rejected' WHERE id=?", (run_id,))
         return await get_run(run_id)
 
@@ -309,8 +312,9 @@ async def approve_run(
         with db.connect() as conn:
             conn.execute(
                 """UPDATE jira_actions SET state=?, comment_ok=?, transition_to=?,
-                   transition_ok=?, skipped_reason=? WHERE id=?""",
-                (state, None if cok is None else int(cok), tto, None if tok is None else int(tok), reason, a["id"]),
+                   transition_ok=?, skipped_reason=?, approved_by=?, approved_at=? WHERE id=?""",
+                (state, None if cok is None else int(cok), tto, None if tok is None else int(tok), reason,
+                 _approver.get("username", ""), _now(), a["id"]),
             )
 
     with db.connect() as conn:
