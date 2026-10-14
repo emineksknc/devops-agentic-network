@@ -401,7 +401,7 @@ export function Settings() {
               className="input font-mono"
               type="password"
               value={form.token}
-              placeholder={hasSecrets.token ? "kayıtlı •••• (boş bırak = değişmez)" : "henüz kayıtlı değil"}
+              placeholder={hasSecrets.token ? "••••••••" : ""}
               onChange={(e) => set("token", e.target.value)}
             />
           </Field>
@@ -411,7 +411,7 @@ export function Settings() {
                 className="input font-mono"
                 type="password"
                 value={form.webhook_secret}
-                placeholder={hasSecrets.secret ? "kayıtlı •••• (boş bırak = değişmez)" : "henüz kayıtlı değil"}
+                placeholder={hasSecrets.secret ? "••••••••" : ""}
                 onChange={(e) => set("webhook_secret", e.target.value)}
               />
             </Field>
