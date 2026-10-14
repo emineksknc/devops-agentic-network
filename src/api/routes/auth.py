@@ -19,8 +19,10 @@ _USERNAME_RE = re.compile(r"^[a-zA-Z0-9_.@-]{3,32}$")
 
 
 def _to_out(r: dict) -> UserOut:
+    cols = set(r.keys())
     return UserOut(id=r["id"], username=r["username"], role=r["role"],
-                   created_at=r["created_at"], last_login_at=r.get("last_login_at") or "")
+                   created_at=r["created_at"], last_login_at=r.get("last_login_at") or "",
+                   email=(r.get("email") or "") if "email" in cols else "")
 
 
 @router.post("/register", response_model=UserOut, status_code=201)
@@ -44,8 +46,8 @@ async def register(
         uid = uuid.uuid4().hex[:8]
         now = auth_core._now()
         conn.execute(
-            "INSERT INTO users (id, username, password_hash, role, created_at) VALUES (?,?,?,?,?)",
-            (uid, body.username, auth_core.hash_password(body.password), role, now),
+            "INSERT INTO users (id, username, password_hash, role, created_at, email) VALUES (?,?,?,?,?,?)",
+            (uid, body.username, auth_core.hash_password(body.password), role, now, (body.email or "").strip()),
         )
         row = db.row_to_dict(conn.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone())
     return _to_out(row)
@@ -54,9 +56,10 @@ async def register(
 @router.get("/users", response_model=list[UserOut])
 async def list_users(_admin: dict = Depends(auth_core.require_roles("admin"))) -> list[UserOut]:
     with db.connect() as conn:
-        rows = conn.execute("SELECT id, username, role, created_at, last_login_at FROM users ORDER BY created_at").fetchall()
+        rows = conn.execute("SELECT id, username, role, created_at, last_login_at, email FROM users ORDER BY created_at").fetchall()
     return [UserOut(id=r["id"], username=r["username"], role=r["role"], created_at=r["created_at"],
-                    last_login_at=(r["last_login_at"] or "")) for r in rows]
+                    last_login_at=(r["last_login_at"] or ""),
+                    email=(r["email"] or "")) for r in rows]
 
 
 @router.post("/login", response_model=TokenOut)

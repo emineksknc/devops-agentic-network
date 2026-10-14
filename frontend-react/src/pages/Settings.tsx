@@ -82,8 +82,9 @@ export function Settings() {
   const [models, setModels] = useState<{ name: string; source?: string }[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
   const [hasSecrets, setHasSecrets] = useState({ token: false, secret: false });
-  const [users, setUsers] = useState<{ id: string; username: string; role: string; created_at: string; last_login_at?: string }[]>([]);
-  const [newUser, setNewUser] = useState({ username: "", password: "" });
+  const [users, setUsers] = useState<{ id: string; username: string; role: string; created_at: string; email?: string; last_login_at?: string }[]>([]);
+  const [newUser, setNewUser] = useState({ username: "", email: "" });
+  const [freshPassword, setFreshPassword] = useState<{ username: string; password: string } | null>(null);
   const [connQuery, setConnQuery] = useState("");
   const [kindTab, setKindTab] = useState<KindTab>("all");
   const [redact, setRedact] = useState(true);
@@ -100,7 +101,7 @@ export function Settings() {
       toast(`Yüklenemedi: ${(e as Error).message}`, false);
     }
     try {
-      setUsers(await api.get<{ id: string; username: string; role: string; created_at: string; last_login_at?: string }[]>("/api/auth/users"));
+      setUsers(await api.get<{ id: string; username: string; role: string; created_at: string; email?: string; last_login_at?: string }[]>("/api/auth/users"));
     } catch {
       setUsers([]);
     }
@@ -459,6 +460,7 @@ export function Settings() {
     <>
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2">
         <div>
+          <div className="text-xs text-muted mb-1">Yönetim / Bağlantılar</div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold">Bağlantılar ve Entegrasyonlar</h1>
             <StatusBadge status="running" />
@@ -554,6 +556,7 @@ export function Settings() {
               <thead>
                 <tr className="text-left text-xs text-muted uppercase">
                   <th className="px-3 py-2 font-semibold">Kullanıcı</th>
+                  <th className="px-3 py-2 font-semibold">E-posta</th>
                   <th className="px-3 py-2 font-semibold">Rol / Yetki Kapsamı</th>
                   <th className="px-3 py-2 font-semibold">Son Giriş</th>
                   <th className="px-3 py-2 font-semibold">Oluşturuldu</th>
@@ -565,12 +568,18 @@ export function Settings() {
                     <td className="px-3 py-2">
                       <span
                         className="inline-flex items-center justify-center rounded-full mr-2 text-[10px] font-mono"
-                        style={{ width: 24, height: 24, background: "#2d3449", color: "#818cf8" }}
+                        style={{
+                          width: 24,
+                          height: 24,
+                          background: u.role === "admin" ? "#494bd6" : u.role === "approver" ? "#2f3aa3" : "#2d3449",
+                          color: "#fff",
+                        }}
                       >
                         {initials(u.username)}
                       </span>
                       <span className="font-mono">{u.username}</span>
                     </td>
+                    <td className="px-3 py-2 text-xs font-mono text-muted">{u.email || "—"}</td>
                     <td className="px-3 py-2">
                       <select
                         className="input sm:max-w-xs"
@@ -610,21 +619,25 @@ export function Settings() {
             />
             <input
               className="input font-mono"
-              type="password"
-              placeholder="parola (8+)"
-              value={newUser.password}
-              onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+              placeholder="e-posta (opsiyonel)"
+              value={newUser.email}
+              onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
             />
-            <span className="text-xs text-muted self-center">Yeni hesap viewer açılır.</span>
+            <span className="text-xs text-muted self-center">Parola otomatik üretilir, bir kez gösterilir.</span>
             <button
               className="btn-primary"
               onClick={async () => {
                 try {
+                  const pwd = Array.from(crypto.getRandomValues(new Uint8Array(12)))
+                    .map((b) => "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789"[b % 56])
+                    .join("");
                   await api.post("/api/auth/register", {
                     username: newUser.username.trim(),
-                    password: newUser.password,
+                    password: pwd,
+                    email: newUser.email.trim(),
                   });
-                  setNewUser({ username: "", password: "" });
+                  setNewUser({ username: "", email: "" });
+                  setFreshPassword({ username: newUser.username.trim(), password: pwd });
                   toast("Kullanıcı açıldı (viewer).");
                   load();
                 } catch (err) {
@@ -635,6 +648,15 @@ export function Settings() {
               + Ekle
             </button>
           </div>
+          {freshPassword && (
+            <div className="rounded p-2 text-xs font-mono" style={{ background: "#0b1326" }}>
+              {freshPassword.username} parolası: <b>{freshPassword.password}</b> — bir yere kaydet, tekrar
+              gösterilmeyecek.{" "}
+              <button className="text-accent-soft" onClick={() => setFreshPassword(null)}>
+                Kapat
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -649,7 +671,13 @@ export function Settings() {
             style={{ background: "rgba(2,6,23,.6)" }}
             onClick={() => setEditing(null)}
           />
-          <aside className="fixed top-0 right-0 bottom-0 z-50 w-full sm:max-w-md overflow-y-auto card !rounded-none p-4 space-y-3">
+          <aside
+            className="fixed top-0 right-0 bottom-0 z-50 w-full sm:max-w-md overflow-y-auto card !rounded-none p-4 space-y-3"
+            onKeyDown={(e) => {
+              const t = e.target as HTMLElement;
+              if (e.key === "Enter" && !/^(SELECT|TEXTAREA|BUTTON)$/.test(t.tagName)) save();
+            }}
+          >
             <div className="flex items-center justify-between">
               <b className="text-sm">Hızlı Yapılandırma &amp; Bağlantı Önizleme</b>
               <span className="text-xs font-mono text-faint">Esc</span>
@@ -821,7 +849,7 @@ export function Settings() {
               Varsayılan yap
             </label>
             <div className="flex items-center justify-between pt-1">
-              <span className="text-xs font-mono text-faint">[Esc] Kapat</span>
+              <span className="text-xs font-mono text-faint">[Enter] Kaydet · [Esc] Kapat</span>
               <div className="flex gap-2">
                 <button className="btn-ghost" onClick={() => setEditing(null)}>
                   İptal

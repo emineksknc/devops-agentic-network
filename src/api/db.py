@@ -157,7 +157,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
                         "is_disabled", "created_at", "disabled_at",
                         "last_tested_at", "last_latency_ms", "last_test_ok", "last_test_status"],
         "jira_actions": ["target_status", "approved_by", "approved_at"],
-        "users": ["last_login_at"],
+        "users": ["last_login_at", "email"],
         "commit_units": ["jira_people"],
     }.items():
         have = cols(table)
