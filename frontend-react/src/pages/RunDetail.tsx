@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { api, timeAgo, type RunDetail } from "../api";
+import { api, formatDateTime, formatDuration, timeAgo, type RunDetail } from "../api";
 import { Chip, StatusBadge } from "../components/badges";
 import { toast } from "../components/Toaster";
 
@@ -73,6 +73,19 @@ export function RunDetail() {
         <span className="text-xs text-muted">
           {run.repo} · {timeAgo(run.created_at)}
         </span>
+        <span className="text-xs text-muted" title={`Başlangıç: ${formatDateTime(run.created_at)}`}>
+          {formatDateTime(run.created_at)}
+          {run.finished_at ? ` → ${formatDateTime(run.finished_at)}` : " → çalışıyor…"}
+        </span>
+        {run.duration_seconds !== undefined && run.duration_seconds !== null && (
+          <span
+            className="px-2 py-0.5 rounded text-xs font-semibold"
+            style={{ background: "rgba(129,140,248,.15)", color: "#818cf8" }}
+            title="Değerlendirme süresi"
+          >
+            ⏱ {formatDuration(run.duration_seconds)}
+          </span>
+        )}
         {(run.llm_model || run.llm_provider) && (
           <span className="text-xs font-mono text-muted">
             {run.llm_provider ? `${run.llm_provider} · ` : ""}{run.llm_model || "?"}

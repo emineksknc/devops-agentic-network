@@ -18,6 +18,22 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def duration_seconds(created_at: str, finished_at: str) -> int | None:
+    """Degerlendirme suresi (sn). Bitmemis run'da None."""
+    try:
+        if not created_at or not finished_at:
+            return None
+        start = datetime.fromisoformat(created_at)
+        end = datetime.fromisoformat(finished_at)
+        if start.tzinfo is None:
+            start = start.replace(tzinfo=timezone.utc)
+        if end.tzinfo is None:
+            end = end.replace(tzinfo=timezone.utc)
+        return max(0, int((end - start).total_seconds()))
+    except Exception:
+        return None
+
+
 def _parse_repo(repo: str) -> dict:
     from src.config.settings import settings
 
@@ -127,13 +143,14 @@ async def execute_run(
                     (run_id, ev["ts"], ev["node"], ev["level"], ev["message"][:2000]),
                 )
             conn.execute(
-                "UPDATE runs SET status=?, final_report=?, error=? WHERE id=?",
-                (status, result.get("final_report", ""), err_text, run_id),
+                "UPDATE runs SET status=?, final_report=?, error=?, finished_at=? WHERE id=?",
+                (status, result.get("final_report", ""), err_text, _now(), run_id),
             )
     except Exception as e:  # arka plan gorevi hicbir zaman sessizce olmemeli
         logger.exception("run %s basarisiz", run_id)
         with db.connect() as conn:
-            conn.execute("UPDATE runs SET status='failed', error=? WHERE id=?", (str(e)[:2000], run_id))
+            conn.execute("UPDATE runs SET status='failed', error=?, finished_at=? WHERE id=?",
+                         (str(e)[:2000], _now(), run_id))
 
 
 @router.post("", response_model=RunOut, status_code=202)
@@ -204,6 +221,8 @@ async def get_run(run_id: str) -> RunDetailOut:
         created_at=r["created_at"], final_report=r.get("final_report"), error=r.get("error"),
         llm_provider=r.get("llm_provider") or "", llm_model=r.get("llm_model") or "",
         jira_base_url=jira_base_url,
+        finished_at=r.get("finished_at") or None,
+        duration_seconds=duration_seconds(r.get("created_at") or "", r.get("finished_at") or ""),
         commit_units=[
             CommitUnitOut(
                 sha=u["sha"], short_sha=u["short_sha"], message=u["message"], author=u["author"],

@@ -82,6 +82,8 @@ export interface RunDetail extends Run {
   final_report?: string | null;
   error?: string | null;
   jira_base_url?: string;
+  finished_at?: string | null;
+  duration_seconds?: number | null;
   commit_units: CommitUnit[];
   jira_actions: JiraAction[];
   events: RunEvent[];
@@ -153,4 +155,24 @@ export function timeAgo(iso?: string | null): string {
   if (diff < 3600) return `${Math.max(1, Math.floor(diff / 60))} dk önce`;
   if (diff < 86400) return `${Math.floor(diff / 3600)} saat önce`;
   return new Date(iso).toLocaleString("tr-TR");
+}
+
+export function formatDateTime(iso?: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("tr-TR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export function formatDuration(totalSeconds?: number | null): string {
+  if (totalSeconds === undefined || totalSeconds === null) return "—";
+  const s = Math.max(0, Math.floor(totalSeconds));
+  if (s < 60) return `${s} sn`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m} dk ${s % 60} sn`;
+  return `${Math.floor(m / 60)} sa ${m % 60} dk`;
 }

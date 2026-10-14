@@ -161,3 +161,29 @@ def test_run_list_verdict_flags(client):
     assert row["failed_count"] == 1
     assert row["mismatch_count"] == 1
     assert row["blocked_count"] == 2
+
+
+def test_duration_seconds():
+    from src.api.routes.runs import duration_seconds
+
+    assert duration_seconds("2026-10-14T10:00:00+00:00", "2026-10-14T10:05:30+00:00") == 330
+    assert duration_seconds("2026-10-14T10:00:00+00:00", "") is None
+    assert duration_seconds("", "") is None
+    assert duration_seconds("gecersiz", "2026-10-14T10:05:30+00:00") is None
+    # Bitis baslangictan onceyse negatif degil sifir
+    assert duration_seconds("2026-10-14T10:05:30+00:00", "2026-10-14T10:00:00+00:00") == 0
+
+
+def test_run_detail_reports_finish_time_and_duration(client):
+    from src.api import db as dbmod
+
+    with dbmod.connect() as conn:
+        conn.execute(
+            "INSERT INTO runs (id, created_at, trigger, repo, user_goal, status, dry_run,"
+            " finished_at) VALUES (?,?,?,?,?,?,?,?)",
+            ("sure", "2026-10-14T10:00:00+00:00", "api", "org/demo", "", "success", 1,
+             "2026-10-14T10:04:05+00:00"),
+        )
+    body = client.get("/api/runs/sure").json()
+    assert body["finished_at"] == "2026-10-14T10:04:05+00:00"
+    assert body["duration_seconds"] == 245

@@ -131,7 +131,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
         return {r["name"] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
 
     for table, wanted in {
-        "runs": ["github_conn_id", "jira_conn_id", "llm_conn_id", "llm_provider", "llm_model"],
+        "runs": ["github_conn_id", "jira_conn_id", "llm_conn_id", "llm_provider", "llm_model", "finished_at"],
         "policies": ["github_conn_id", "jira_conn_id"],
         "connections": ["provider", "model", "temperature", "max_tokens", "webhook_secret"],
         "jira_actions": ["target_status"],

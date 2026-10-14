@@ -67,6 +67,8 @@ class RunDetailOut(BaseModel):
     llm_provider: str = ""
     llm_model: str = ""
     jira_base_url: str = ""
+    finished_at: Optional[str] = None
+    duration_seconds: Optional[int] = None
     final_report: Optional[str] = None
     error: Optional[str] = None
     commit_units: list[CommitUnitOut] = []
