@@ -27,6 +27,7 @@ export function Settings() {
   const [form, setForm] = useState(BLANK);
   const [models, setModels] = useState<{ name: string; source?: string }[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
+  const [hasSecrets, setHasSecrets] = useState({ token: false, secret: false });
   const [users, setUsers] = useState<{ id: string; username: string; role: string }[]>([]);
   const [newUser, setNewUser] = useState({ username: "", password: "" });
   const [redact, setRedact] = useState(true);
@@ -84,12 +85,15 @@ export function Settings() {
   function openNew() {
     setForm({ ...BLANK });
     setEditing({ ...BLANK });
+    setHasSecrets({ token: false, secret: false });
   }
   function openEdit(c: Connection) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { token: _t, webhook_secret: _w, ...rest } = c;
     setForm({ ...rest, token: "", webhook_secret: "" });
     setEditing({ ...rest, token: "", webhook_secret: "" });
+    // Secret forma ASLA dolmaz; sadece "kayitli" ipucu gosterilir
+    setHasSecrets({ token: _t === "***masked***", secret: _w === "***masked***" });
   }
 
   async function save() {
@@ -397,7 +401,7 @@ export function Settings() {
               className="input font-mono"
               type="password"
               value={form.token}
-              placeholder={editing.token === "***masked***" ? "kayıtlı" : ""}
+              placeholder={hasSecrets.token ? "kayıtlı •••• (boş bırak = değişmez)" : "henüz kayıtlı değil"}
               onChange={(e) => set("token", e.target.value)}
             />
           </Field>
@@ -407,6 +411,7 @@ export function Settings() {
                 className="input font-mono"
                 type="password"
                 value={form.webhook_secret}
+                placeholder={hasSecrets.secret ? "kayıtlı •••• (boş bırak = değişmez)" : "henüz kayıtlı değil"}
                 onChange={(e) => set("webhook_secret", e.target.value)}
               />
             </Field>
