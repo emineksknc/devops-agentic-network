@@ -6,12 +6,34 @@ function stripHtml(s: string): string {
     .slice(0, 160);
 }
 
+const TOKEN_KEY = "dan_token";
+
+export function getToken(): string {
+  try {
+    return localStorage.getItem(TOKEN_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+export function setToken(t: string) {
+  try {
+    if (t) localStorage.setItem(TOKEN_KEY, t);
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    /* yoksay */
+  }
+}
+
 async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
   let r: Response;
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const token = getToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
   try {
     r = await fetch(path, {
       method,
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch (e) {
@@ -23,6 +45,12 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
     data = text ? (JSON.parse(text) as typeof data) : {};
   } catch {
     throw new Error(`API JSON dışı yanıt döndürdü (HTTP ${r.status}): ${stripHtml(text) || "boş gövde"}`);
+  }
+  if (r.status === 401 && !path.startsWith("/api/auth/") && window.location.pathname !== "/login") {
+    // Oturum bitmis/yok: girise gonder (login sayfasinda ve auth uclarinda donguye girme)
+    setToken("");
+    window.location.assign("/login");
+    throw new Error("Oturum sona ermiş, giriş gerekiyor.");
   }
   if (!r.ok) throw new Error(stripHtml(String(data.detail || `HTTP ${r.status}`)));
   return data as T;

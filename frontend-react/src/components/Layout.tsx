@@ -1,5 +1,7 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { Toaster } from "./Toaster";
+import { api, getToken, setToken } from "../api";
 
 const NAV = [
   { to: "/runs", label: "Çalıştırmalar" },
@@ -11,6 +13,27 @@ const NAV = [
 ];
 
 export function Layout() {
+  const nav = useNavigate();
+  const [me, setMe] = useState<{ username: string; role: string } | null>(null);
+
+  useEffect(() => {
+    if (!getToken()) return;
+    api
+      .get<{ username: string; role: string }>("/api/auth/me")
+      .then(setMe)
+      .catch(() => setMe(null));
+  }, []);
+
+  async function logout() {
+    try {
+      await api.post("/api/auth/logout", {});
+    } catch {
+      /* token zaten gecersizse de cik */
+    }
+    setToken("");
+    nav("/login", { replace: true });
+  }
+
   return (
     <div className="min-h-screen bg-canvas text-ink">
       <Toaster />
@@ -43,7 +66,17 @@ export function Layout() {
       >
         <span className="lg:hidden font-bold">DevOps Agentic</span>
         <span className="hidden lg:inline text-sm text-muted">Otonom DevOps Orkestrasyonu</span>
-        <span className="text-xs font-mono text-faint">v0.2.0</span>
+        <span className="flex items-center gap-3">
+          {me && (
+            <span className="text-xs font-mono text-muted">
+              {me.username} · {me.role}
+            </span>
+          )}
+          <button className="text-xs text-muted hover:text-ink" onClick={logout}>
+            Çıkış
+          </button>
+          <span className="text-xs font-mono text-faint">v0.3.0</span>
+        </span>
       </header>
       <main className="pt-16 lg:pl-60 pb-24 lg:pb-10">
         <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-4 space-y-4">

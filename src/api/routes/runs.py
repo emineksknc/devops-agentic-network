@@ -5,10 +5,11 @@ import re
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
 from src.api import db
 from src.api.schemas import ApproveIn, CommitUnitOut, JiraActionOut, RunCreate, RunDetailOut, RunEventOut, RunOut
+from src.core.auth import require_roles
 
 logger = logging.getLogger("api.runs")
 router = APIRouter(prefix="/api/runs", tags=["runs"])
@@ -252,7 +253,10 @@ async def get_run(run_id: str) -> RunDetailOut:
 
 
 @router.post("/{run_id}/approve", response_model=RunDetailOut)
-async def approve_run(run_id: str, body: ApproveIn) -> RunDetailOut:
+async def approve_run(
+    run_id: str, body: ApproveIn,
+    _approver: dict = Depends(require_roles("admin", "approver")),
+) -> RunDetailOut:
     from src.agents.jira_agent import JiraAgent
 
     with db.connect() as conn:

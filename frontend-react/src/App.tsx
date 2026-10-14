@@ -7,11 +7,25 @@ import { Audit } from "./pages/Audit";
 import { Agents } from "./pages/Agents";
 import { Developers } from "./pages/Developers";
 import { Settings } from "./pages/Settings";
+import { Login } from "./pages/Login";
+import { getToken } from "./api";
+
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  if (!getToken()) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
 
 export function App() {
   return (
     <Routes>
-      <Route element={<Layout />}>
+      <Route path="/login" element={<Login />} />
+      <Route
+        element={
+          <RequireAuth>
+            <Layout />
+          </RequireAuth>
+        }
+      >
         <Route index element={<Navigate to="/runs" replace />} />
         <Route path="/runs" element={<Runs />} />
         <Route path="/runs/:id" element={<RunDetail />} />

@@ -2,10 +2,11 @@
 NOT(v1): token'lar SQLite'da duz metin durur; dosya izni + vault plani sart."""
 import uuid
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from src.api import db
 from src.api.schemas import ConnectionIn, ConnectionOut
+from src.core.auth import require_roles
 
 router = APIRouter(prefix="/api/connections", tags=["connections"])
 
@@ -49,7 +50,7 @@ async def list_connections(kind: str = "") -> list[ConnectionOut]:
 
 
 @router.post("", response_model=ConnectionOut, status_code=201)
-async def create_connection(body: ConnectionIn) -> ConnectionOut:
+async def create_connection(body: ConnectionIn, _admin: dict = Depends(require_roles("admin"))) -> ConnectionOut:
     conn_id = f"{body.kind}-{uuid.uuid4().hex[:6]}"
     with db.connect() as conn:
         if body.is_default:
@@ -67,7 +68,7 @@ async def create_connection(body: ConnectionIn) -> ConnectionOut:
 
 
 @router.put("/{conn_id}", response_model=ConnectionOut)
-async def update_connection(conn_id: str, body: ConnectionIn) -> ConnectionOut:
+async def update_connection(conn_id: str, body: ConnectionIn, _admin: dict = Depends(require_roles("admin"))) -> ConnectionOut:
     with db.connect() as conn:
         r = db.row_to_dict(conn.execute("SELECT * FROM connections WHERE id=?", (conn_id,)).fetchone())
         if not r:
@@ -90,7 +91,7 @@ async def update_connection(conn_id: str, body: ConnectionIn) -> ConnectionOut:
 
 
 @router.delete("/{conn_id}")
-async def delete_connection(conn_id: str) -> dict:
+async def delete_connection(conn_id: str, _admin: dict = Depends(require_roles("admin"))) -> dict:
     with db.connect() as conn:
         cur = conn.execute("DELETE FROM connections WHERE id=?", (conn_id,))
         if cur.rowcount == 0:

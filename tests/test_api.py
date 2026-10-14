@@ -27,14 +27,45 @@ def test_health(client):
     assert r.json()["status"] == "ok"
 
 
+def _auth_headers(client, username: str = "kurucu", password: str = "guclu-parola-1") -> dict:
+    client.post("/api/auth/register", json={"username": username, "password": password})
+    tok = client.post("/api/auth/login", json={"username": username, "password": password}).json()["token"]
+    return {"Authorization": f"Bearer {tok}"}
+
+
+def test_connection_writes_require_admin(client):
+    admin = _auth_headers(client, "kurucu")
+    viewer = _auth_headers(client, "eleman", "guclu-parola-2")
+    body = {"name": "GH", "kind": "github", "base_url": "", "owner": "o", "email": "",
+            "token": "", "project_key": "", "provider": "", "model": "",
+            "temperature": 0.3, "max_tokens": 2048, "webhook_secret": "", "is_default": False}
+    assert client.put("/api/connections/x", json=body).status_code == 401
+    assert client.post("/api/connections", json=body, headers=viewer).status_code == 403
+    created = client.post("/api/connections", json=body, headers=admin).json()
+    cid = created["id"]
+    assert client.delete(f"/api/connections/{cid}", headers=viewer).status_code == 403
+    assert client.delete(f"/api/connections/{cid}", headers=admin).json()["deleted"] == cid
+
+
+def test_approve_requires_approver(client):
+    assert client.post("/api/runs/yok/approve", json={"approved": True}).status_code == 401
+    _auth_headers(client, "kurucu")  # ilk kayit: admin
+    viewer = _auth_headers(client, "eleman", "guclu-parola-2")  # viewer
+    r = client.post("/api/runs/yok/approve", json={"approved": True}, headers=viewer)
+    assert r.status_code == 403
+
+
 def test_connections_start_empty_then_create(client):
     # Varsayilan tohum YOK: bos envanterle baslar, UI/API ile eklenir
     assert client.get("/api/connections").json() == []
+    admin = _auth_headers(client, "kurucu", "guclu-parola-1")
     body = {"name": "GH", "kind": "github", "base_url": "https://api.github.com",
             "owner": "o", "email": "", "token": "secret-token", "project_key": "",
             "provider": "", "model": "", "temperature": 0.3, "max_tokens": 2048,
             "webhook_secret": "", "is_default": True}
-    created = client.post("/api/connections", json=body).json()
+    denied = client.post("/api/connections", json=body)
+    assert denied.status_code == 401
+    created = client.post("/api/connections", json=body, headers=admin).json()
     assert created["token"] == "***masked***"
     listed = client.get("/api/connections").json()
     assert len(listed) == 1
