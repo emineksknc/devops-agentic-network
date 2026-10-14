@@ -6,8 +6,8 @@ Aşağıdaki fazlar sırayla, her biri tek başına dağıtıla artı değer ür
 ## Faz 0 — Ürüne kapatma (şu an buradayız, ~bitmek üzere)
 - [x] Reviewer üçlü hüküm (PASSED/FAILED/MISMATCH) + kanıt kuralları
 - [x] Run timeline, model mührü, süre, filtreler
-- [ ] `feature/web-ui` → `main` merge + sürüm etiketi (v0.3.0)
-- [ ] Değişiklik günlüğü (CHANGELOG) rutini
+- [x] `feature/web-ui` → `main` merge + sürüm etiketi (v0.3.0)
+- [x] Değişiklik günlüğü (CHANGELOG) rutini
 
 ## Faz 1 — Güvenlik temeli (B2B'siz olmaz)
 - Login + roller (admin / onaylayıcı / izleyici). Şu an URL'yi bilen herkes Jira'ya yazdırabilir.
