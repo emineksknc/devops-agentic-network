@@ -181,6 +181,7 @@ export interface Connection {
   last_tested_at?: string;
   last_latency_ms?: number;
   last_test_ok?: boolean | null;
+  last_test_status?: number;
 }
 
 export interface AgentInfo {

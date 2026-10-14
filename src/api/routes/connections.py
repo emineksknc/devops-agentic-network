@@ -49,6 +49,7 @@ def _to_out(r) -> ConnectionOut:
         last_tested_at=(r["last_tested_at"] or "") if "last_tested_at" in keys else "",
         last_latency_ms=int(r["last_latency_ms"] or 0) if "last_latency_ms" in keys else 0,
         last_test_ok=_tri(r["last_test_ok"]) if "last_test_ok" in keys else None,
+        last_test_status=int(r["last_test_status"] or 0) if "last_test_status" in keys else 0,
     )
 
 
@@ -163,8 +164,8 @@ async def test_connection(conn_id: str) -> dict:
         try:
             with db.connect() as conn:
                 conn.execute(
-                    "UPDATE connections SET last_tested_at=?, last_latency_ms=?, last_test_ok=? WHERE id=?",
-                    (now, ms, 1 if ok else 0, conn_id),
+                    "UPDATE connections SET last_tested_at=?, last_latency_ms=?, last_test_ok=?, last_test_status=? WHERE id=?",
+                    (now, ms, 1 if ok else 0, status, conn_id),
                 )
         except Exception:
             pass

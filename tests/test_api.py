@@ -217,6 +217,7 @@ def test_test_endpoint_stamps_latency(client):
     assert "latency_ms" in out and out["latency_ms"] >= 0
     row = next(x for x in client.get("/api/connections", headers=admin).json() if x["id"] == cid)
     assert row["last_tested_at"] and row["last_test_ok"] is False
+    assert row["last_test_status"] == 0
 
 
 def test_approve_records_identity(client):

@@ -18,9 +18,17 @@ export function StatusBadge({ status }: { status?: string | null }) {
   const [label, color] = MAP[status || ""] || [status || "—", "#94a3b8"];
   return (
     <span
-      className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
-      style={{ background: `color-mix(in srgb, ${color} 18%, transparent)`, color }}
+      className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold"
+      style={{
+        background: `color-mix(in srgb, ${color} 14%, transparent)`,
+        border: `1px solid color-mix(in srgb, ${color} 35%, transparent)`,
+        color,
+      }}
     >
+      <span
+        className="inline-block rounded-full mr-1.5"
+        style={{ width: 6, height: 6, background: color }}
+      />
       {label}
     </span>
   );

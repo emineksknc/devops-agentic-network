@@ -155,7 +155,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
         "policies": ["github_conn_id", "jira_conn_id"],
         "connections": ["provider", "model", "temperature", "max_tokens", "webhook_secret",
                         "is_disabled", "created_at", "disabled_at",
-                        "last_tested_at", "last_latency_ms", "last_test_ok"],
+                        "last_tested_at", "last_latency_ms", "last_test_ok", "last_test_status"],
         "jira_actions": ["target_status", "approved_by", "approved_at"],
         "users": ["last_login_at"],
         "commit_units": ["jira_people"],

@@ -124,6 +124,7 @@ class ConnectionOut(ConnectionIn):
     last_tested_at: str = ""
     last_latency_ms: int = 0
     last_test_ok: Optional[bool] = None
+    last_test_status: int = 0
 
 
 class HealthOut(BaseModel):
