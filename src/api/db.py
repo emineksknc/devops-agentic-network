@@ -112,6 +112,22 @@ def init_db() -> None:
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL DEFAULT ''
             );
+            -- Kullanicilar (Faz 1: login + roller). Ilk kayit admin olur.
+            CREATE TABLE IF NOT EXISTS users (
+                id TEXT PRIMARY KEY,
+                username TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'viewer',
+                created_at TEXT NOT NULL
+            );
+            -- Opak Bearer token'lar (sadece ozeti saklanir, ham token bir kez verilir)
+            CREATE TABLE IF NOT EXISTS sessions (
+                token_hash TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL REFERENCES users(id),
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
             CREATE INDEX IF NOT EXISTS idx_units_run ON commit_units(run_id);
             CREATE INDEX IF NOT EXISTS idx_units_author ON commit_units(author);
             CREATE INDEX IF NOT EXISTS idx_actions_run ON jira_actions(run_id);

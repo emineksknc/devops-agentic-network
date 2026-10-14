@@ -122,3 +122,20 @@ class HealthOut(BaseModel):
     status: str = "ok"
     version: str = "0.3.0"
     data: dict[str, Any] = {}
+
+
+class UserIn(BaseModel):
+    username: str = Field(min_length=3, max_length=32)
+    password: str = Field(min_length=8, max_length=128)
+
+
+class UserOut(BaseModel):
+    id: str
+    username: str
+    role: str
+    created_at: str
+
+
+class TokenOut(BaseModel):
+    token: str
+    user: UserOut
