@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 from src.api import db
 
-from src.core.auth import get_current_user
+from src.core.auth import get_current_user, require_roles
 
 router = APIRouter(prefix="/api/settings", tags=["settings"], dependencies=[Depends(get_current_user)])
 
@@ -23,7 +23,7 @@ async def get_settings() -> dict:
 
 
 @router.put("")
-async def update_settings(body: SettingsIn) -> dict:
+async def update_settings(body: SettingsIn, _admin: dict = Depends(require_roles("admin"))) -> dict:
     with db.connect() as conn:
         if body.redact_secrets is not None:
             conn.execute(

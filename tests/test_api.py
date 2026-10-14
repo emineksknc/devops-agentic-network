@@ -231,3 +231,14 @@ def test_run_detail_reports_finish_time_and_duration(client):
     body = client.get("/api/runs/sure").json()
     assert body["finished_at"] == "2026-10-14T10:04:05+00:00"
     assert body["duration_seconds"] == 245
+
+
+def test_viewer_is_read_only(client):
+    viewer = _auth_headers(client, "eleman", "guclu-parola-2")
+    assert client.post("/api/runs", json={"repo": "org/demo"}, headers=viewer).status_code == 403
+    assert client.post("/api/policies", json={"repo": "org/demo"}, headers=viewer).status_code == 403
+    assert client.put("/api/agents/reporter_agent", json={"enabled": False}, headers=viewer).status_code == 403
+    assert client.put("/api/settings", json={"redact_secrets": True}, headers=viewer).status_code == 403
+    # Okuma serbest
+    assert client.get("/api/runs", headers=viewer).status_code == 200
+    assert client.get("/api/policies", headers=viewer).status_code == 200

@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Toaster } from "./Toaster";
-import { api, getToken, setToken } from "../api";
+import { api, getToken, setRole, setToken } from "../api";
 
 const NAV = [
   { to: "/runs", label: "Çalıştırmalar" },
@@ -20,7 +20,10 @@ export function Layout() {
     if (!getToken()) return;
     api
       .get<{ username: string; role: string }>("/api/auth/me")
-      .then(setMe)
+      .then((m) => {
+        setMe(m);
+        setRole(m.role);
+      })
       .catch(() => setMe(null));
   }, []);
 
@@ -31,6 +34,7 @@ export function Layout() {
       /* token zaten gecersizse de cik */
     }
     setToken("");
+    setRole("");
     nav("/login", { replace: true });
   }
 

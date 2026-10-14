@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, type Connection } from "../api";
+import { api, isAdmin, type Connection } from "../api";
 import { Field, Modal } from "../components/ui";
 import { toast } from "../components/Toaster";
 
@@ -155,7 +155,7 @@ export function Settings() {
           <h1 className="text-xl font-bold">Bağlantılar</h1>
           <p className="text-sm text-muted">Tokenlar maskeli saklanır, asla listelenmez.</p>
         </div>
-        <button className="btn-primary" onClick={openNew}>
+        <button className="btn-primary" onClick={openNew} disabled={!isAdmin()} title={isAdmin() ? "" : "Admin yetkisi gerekir"}>
           + Yeni Bağlantı
         </button>
       </div>
@@ -180,12 +180,16 @@ export function Settings() {
                   <button className="text-xs text-accent-soft" onClick={() => test(c.id)}>
                     Test
                   </button>
-                  <button className="text-xs text-accent-soft" onClick={() => openEdit(c)}>
-                    Düzenle
-                  </button>
-                  <button className="text-xs text-bad" onClick={() => remove(c.id)}>
-                    Sil
-                  </button>
+                  {isAdmin() && (
+                    <>
+                      <button className="text-xs text-accent-soft" onClick={() => openEdit(c)}>
+                        Düzenle
+                      </button>
+                      <button className="text-xs text-bad" onClick={() => remove(c.id)}>
+                        Sil
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             ))}
@@ -201,10 +205,10 @@ export function Settings() {
           <b className="text-sm">Secret redaksiyonu</b>
           <div className="text-xs text-muted">LLM'e giden diff'lerdeki anahtarlar maskelenir.</div>
         </div>
-        <input type="checkbox" checked={redact} onChange={(e) => toggleRedact(e.target.checked)} />
+        <input type="checkbox" checked={redact} disabled={!isAdmin()} onChange={(e) => toggleRedact(e.target.checked)} />
       </div>
 
-      {users.length > 0 && (
+      {isAdmin() && users.length > 0 && (
         <div className="card p-4 space-y-3">
           <div>
             <b className="text-sm">Kullanıcılar (yalnızca admin)</b>
@@ -410,9 +414,11 @@ export function Settings() {
             Varsayılan yap
           </label>
           <div className="flex justify-end">
-            <button className="btn-primary" onClick={save}>
-              Kaydet
-            </button>
+            {isAdmin() && (
+              <button className="btn-primary" onClick={save}>
+                Kaydet
+              </button>
+            )}
           </div>
         </Modal>
       )}

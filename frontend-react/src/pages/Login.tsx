@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, setToken } from "../api";
+import { api, setRole, setToken } from "../api";
 import { Field } from "../components/ui";
 import { toast } from "../components/Toaster";
 
@@ -25,11 +25,12 @@ export function Login() {
         setMode("login");
         return;
       }
-      const r = await api.post<{ token: string }>("/api/auth/login", {
+      const r = await api.post<{ token: string; user: { role: string } }>("/api/auth/login", {
         username: username.trim(),
         password,
       });
       setToken(r.token);
+      setRole(r.user?.role || "");
       nav("/runs", { replace: true });
     } catch (e) {
       toast((e as Error).message, false);

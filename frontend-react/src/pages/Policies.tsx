@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, type Connection, type Policy } from "../api";
+import { api, isAdmin, type Connection, type Policy } from "../api";
 import { Empty, Field, Modal } from "../components/ui";
 import { toast } from "../components/Toaster";
 
@@ -80,9 +80,11 @@ export function Policies() {
     <>
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Politikalar</h1>
-        <button className="btn-primary" onClick={openNew}>
-          + Yeni Politika
-        </button>
+        {isAdmin() && (
+          <button className="btn-primary" onClick={openNew}>
+            + Yeni Politika
+          </button>
+        )}
       </div>
       {pols.length === 0 ? (
         <Empty text="Henüz politika yok. İlkini oluştur." />
@@ -96,12 +98,16 @@ export function Policies() {
                   <button className="text-xs text-accent-soft" onClick={() => test(p)}>
                     Test Et
                   </button>
-                  <button className="text-xs text-accent-soft" onClick={() => openEdit(p)}>
-                    Düzenle
-                  </button>
-                  <button className="text-xs text-bad" onClick={() => remove(p.repo)}>
-                    Sil
-                  </button>
+                  {isAdmin() && (
+                    <>
+                      <button className="text-xs text-accent-soft" onClick={() => openEdit(p)}>
+                        Düzenle
+                      </button>
+                      <button className="text-xs text-bad" onClick={() => remove(p.repo)}>
+                        Sil
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
               <div className="text-xs text-muted space-y-1">
@@ -283,9 +289,11 @@ function PolicyModal({
         {tgl("dry_run_default", "Dry-run varsayılan")}
       </div>
       <div className="flex justify-end">
-        <button className="btn-primary" onClick={() => onSave(p)}>
-          Kaydet
-        </button>
+        {isAdmin() && (
+          <button className="btn-primary" onClick={() => onSave(p)}>
+            Kaydet
+          </button>
+        )}
       </div>
     </Modal>
   );

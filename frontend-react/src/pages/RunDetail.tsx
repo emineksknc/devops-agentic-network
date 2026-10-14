@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { api, formatDateTime, formatDuration, timeAgo, type RunDetail } from "../api";
+import { api, canApprove, formatDateTime, formatDuration, timeAgo, type RunDetail } from "../api";
 import { Chip, StatusBadge } from "../components/badges";
 import { toast } from "../components/Toaster";
 
@@ -99,12 +99,18 @@ export function RunDetail() {
             <b>Onay bekliyor:</b> <span className="text-muted">Jira'ya henüz yazılmadı. Planı inceleyip onayla.</span>
           </div>
           <div className="flex gap-2">
-            <button className="btn-ghost" onClick={() => decide(false)}>
-              Reddet
-            </button>
-            <button className="btn-primary" onClick={() => decide(true)}>
-              Onayla ve Yaz
-            </button>
+            {canApprove() ? (
+              <>
+                <button className="btn-ghost" onClick={() => decide(false)}>
+                  Reddet
+                </button>
+                <button className="btn-primary" onClick={() => decide(true)}>
+                  Onayla ve Yaz
+                </button>
+              </>
+            ) : (
+              <span className="text-xs text-muted">Onay için approver yetkisi gerekir.</span>
+            )}
           </div>
         </div>
       )}

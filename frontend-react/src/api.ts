@@ -7,6 +7,7 @@ function stripHtml(s: string): string {
 }
 
 const TOKEN_KEY = "dan_token";
+const ROLE_KEY = "dan_role";
 
 export function getToken(): string {
   try {
@@ -23,6 +24,32 @@ export function setToken(t: string) {
   } catch {
     /* yoksay */
   }
+}
+
+export function getRole(): string {
+  try {
+    return localStorage.getItem(ROLE_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+export function setRole(r: string) {
+  try {
+    if (r) localStorage.setItem(ROLE_KEY, r);
+    else localStorage.removeItem(ROLE_KEY);
+  } catch {
+    /* yoksay */
+  }
+}
+
+export function isAdmin(): boolean {
+  return getRole() === "admin";
+}
+
+export function canApprove(): boolean {
+  const r = getRole();
+  return r === "admin" || r === "approver";
 }
 
 async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -49,6 +76,7 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
   if (r.status === 401 && !path.startsWith("/api/auth/") && window.location.pathname !== "/login") {
     // Oturum bitmis/yok: girise gonder (login sayfasinda ve auth uclarinda donguye girme)
     setToken("");
+    setRole("");
     window.location.assign("/login");
     throw new Error("Oturum sona ermiş, giriş gerekiyor.");
   }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, timeAgo, type Policy, type Run } from "../api";
+import { api, canApprove, timeAgo, type Policy, type Run } from "../api";
 import { StatusBadge } from "../components/badges";
 import { Empty, Field, Modal } from "../components/ui";
 import { toast } from "../components/Toaster";
@@ -88,7 +88,7 @@ export function Runs() {
           <h1 className="text-xl font-bold">Çalıştırmalar</h1>
           <p className="text-sm text-muted">Otonom ajan çalıştırmaları ve doğrulama süreçleri</p>
         </div>
-        <button className="btn-primary" onClick={() => setShowNew(true)}>
+        <button className="btn-primary" onClick={() => setShowNew(true)} disabled={!canApprove()} title={canApprove() ? "" : "Run başlatmak için approver yetkisi gerekir"}>
           + Yeni Run Başlat
         </button>
       </div>

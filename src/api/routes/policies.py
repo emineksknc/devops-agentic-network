@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from src.api import db
 from src.api.schemas import PolicyIn, PolicyOut
 
-from src.core.auth import get_current_user
+from src.core.auth import get_current_user, require_roles
 
 router = APIRouter(prefix="/api/policies", tags=["policies"], dependencies=[Depends(get_current_user)])
 
@@ -36,7 +36,7 @@ async def get_policy(repo: str) -> PolicyOut:
 
 
 @router.post("", response_model=PolicyOut)
-async def upsert_policy(body: PolicyIn) -> PolicyOut:
+async def upsert_policy(body: PolicyIn, _admin: dict = Depends(require_roles("admin"))) -> PolicyOut:
     with db.connect() as conn:
         conn.execute(
             """INSERT INTO policies
@@ -65,7 +65,7 @@ async def upsert_policy(body: PolicyIn) -> PolicyOut:
 
 
 @router.delete("/{repo:path}")
-async def delete_policy(repo: str) -> dict:
+async def delete_policy(repo: str, _admin: dict = Depends(require_roles("admin"))) -> dict:
     with db.connect() as conn:
         cur = conn.execute("DELETE FROM policies WHERE repo=?", (repo,))
         if cur.rowcount == 0:

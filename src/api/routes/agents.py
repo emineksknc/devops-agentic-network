@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from src.api import db
 from src.core.registry import registry
 
-from src.core.auth import get_current_user
+from src.core.auth import get_current_user, require_roles
 
 router = APIRouter(prefix="/api/agents", tags=["agents"], dependencies=[Depends(get_current_user)])
 
@@ -37,7 +37,7 @@ async def list_agents() -> list[dict]:
 
 
 @router.put("/{name}")
-async def update_agent(name: str, body: AgentUpdate) -> dict:
+async def update_agent(name: str, body: AgentUpdate, _admin: dict = Depends(require_roles("admin"))) -> dict:
     from src.agents.orchestrator_agent import _register_defaults
 
     _register_defaults()

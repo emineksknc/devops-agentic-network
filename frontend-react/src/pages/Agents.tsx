@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, type AgentInfo } from "../api";
+import { api, isAdmin, type AgentInfo } from "../api";
 import { Empty, Field, Modal } from "../components/ui";
 import { toast } from "../components/Toaster";
 
@@ -54,7 +54,7 @@ export function Agents() {
                 <b className="text-sm">
                   <span style={{ color: a.enabled ? "#10b981" : "#64748b" }}>●</span> {a.name}
                 </b>
-                <button className="text-xs text-accent-soft" onClick={() => toggle(a)}>
+                <button className="text-xs text-accent-soft" onClick={() => toggle(a)} disabled={!isAdmin()} title={isAdmin() ? "" : "Admin yetkisi gerekir"}>
                   {a.enabled ? "Kapat" : "Aç"}
                 </button>
               </div>
@@ -62,15 +62,17 @@ export function Agents() {
                 {a.enabled ? "Aktif" : "Devre dışı (akışta atlanır)"}
                 {a.customized && <span style={{ color: "#f59e0b" }}> · özel prompt</span>}
               </div>
-              <button
-                className="text-xs text-accent-soft"
-                onClick={() => {
-                  setEditing(a);
-                  setPrompt(a.system_prompt || "");
-                }}
-              >
-                System promptu düzenle
-              </button>
+              {isAdmin() && (
+                <button
+                  className="text-xs text-accent-soft"
+                  onClick={() => {
+                    setEditing(a);
+                    setPrompt(a.system_prompt || "");
+                  }}
+                >
+                  System promptu düzenle
+                </button>
+              )}
             </div>
           ))}
         </div>

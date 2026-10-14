@@ -155,7 +155,10 @@ async def execute_run(
 
 
 @router.post("", response_model=RunOut, status_code=202)
-async def create_run(body: RunCreate, background: BackgroundTasks) -> RunOut:
+async def create_run(
+    body: RunCreate, background: BackgroundTasks,
+    _user: dict = Depends(require_roles("admin", "approver")),
+) -> RunOut:
     run_id = uuid.uuid4().hex[:6]
     with db.connect() as conn:
         conn.execute(
