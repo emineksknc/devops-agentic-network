@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, formatDateTime, formatDuration, timeAgo, type RunDetail } from "../api";
-import { Chip, GithubMark, JiraMark, StatusBadge } from "../components/badges";
+import { Chip, StatusBadge } from "../components/badges";
 import { toast } from "../components/Toaster";
 
 function repoUrl(repo: string) {
@@ -168,42 +168,6 @@ export function RunDetail() {
               ))}
             </div>
             <div className="text-sm font-semibold">{u.message}</div>
-            <div className="rounded-md px-2 py-0.5 text-xs" style={{ background: "#0b1326", color: "#94a3b8" }}>
-              <div className="flex items-center gap-1.5">
-                <GithubMark />
-                {u.author ? (
-                  <a
-                    href={`https://github.com/${u.author}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-mono hover:underline"
-                    title="GitHub yazarı"
-                  >
-                    @{u.author}
-                  </a>
-                ) : (
-                  <span className="font-mono">?</span>
-                )}
-              </div>
-              {Object.entries(u.jira_people || {}).map(([tid]) => (
-                <div key={tid} className="flex items-center gap-1.5">
-                  <JiraMark />
-                  {ticketUrl(run.jira_base_url, tid) ? (
-                    <a
-                      href={ticketUrl(run.jira_base_url, tid)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="font-mono hover:underline"
-                      title="Jira bileti"
-                    >
-                      {tid}
-                    </a>
-                  ) : (
-                    <span className="font-mono">{tid}</span>
-                  )}
-                </div>
-              ))}
-            </div>
             {u.review_comment && (
               <div className="text-xs rounded-md p-2" style={{ background: "#0b1326", color: "#c7c4d7" }}>
                 {u.review_comment}
