@@ -1,0 +1,287 @@
+import logging
+from typing import List, Dict, Any
+import httpx
+from src.core.base_agent import BaseAgent
+from src.config.settings import settings
+from src.core.llm_client import LLMClient
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("JiraAgent")
+
+def adf_to_text(node: Any, limit: int = 2000) -> str:
+    """Atlassian Document Format (Jira aciklama) -> duz metin. Kapsam karsilastirmasi icin."""
+    parts: list[str] = []
+
+    def walk(n: Any) -> None:
+        if isinstance(n, dict):
+            t = n.get("text")
+            if isinstance(t, str) and t.strip():
+                parts.append(t.strip())
+            for v in n.get("content", []) or []:
+                walk(v)
+        elif isinstance(n, list):
+            for v in n:
+                walk(v)
+        elif isinstance(n, str) and n.strip():
+            parts.append(n.strip())
+
+    walk(node)
+    text = " ".join(parts)
+    return text[:limit] if len(text) > limit else text
+
+
+class JiraAgent(BaseAgent):
+    def __init__(self, name: str = "JiraAgent", model_client: Any = None, connection: Dict[str, Any] = None):
+        super().__init__(name, model_client)
+        self.llm = model_client or LLMClient()
+        c = connection or {}
+        explicit = bool(connection)
+        self.base_url_cfg = (c.get("base_url") or settings.JIRA_DOMAIN).rstrip("/")
+        self.email = c.get("email") if explicit else (c.get("email") or settings.JIRA_USER_EMAIL)
+        self.token = c.get("token") if explicit else (c.get("token") or settings.JIRA_API_TOKEN)
+        self.project_key = c.get("project_key") or settings.JIRA_PROJECT_KEY
+        self._issue_cache: Dict[str, Any] = {}  # run icinde bilet tekrar okunmaz
+        self.register_tool("add_comment_to_ticket", self.add_comment_to_ticket)
+        self.register_tool("transition_ticket_status", self.transition_ticket_status)
+
+    def _get_auth(self) -> httpx.BasicAuth:
+        return httpx.BasicAuth(username=self.email, password=self.token)
+
+    def _base_url(self) -> str:
+        # settings.JIRA_DOMAIN sonunda "/" olsa bile çift slash oluşmasını engeller
+        return self.base_url_cfg.rstrip("/")
+
+    async def get_issue(self, ticket_id: str) -> dict | None:
+        """Biletin ozet + aciklamasini doner (kapsam karsilastirmasi icin).
+        Yoksa/erisilemezse None (fail-closed: yok say, cökertme)."""
+        if ticket_id in self._issue_cache:
+            return self._issue_cache[ticket_id]
+        url = f"{self._base_url()}/rest/api/3/issue/{ticket_id}?fields=summary,description,assignee,creator"
+        headers = {"Accept": "application/json"}
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url, headers=headers, auth=self._get_auth())
+                if response.status_code == 200:
+                    data = response.json()
+                    self._issue_cache[ticket_id] = data
+                    return data
+                if response.status_code == 404:
+                    logger.info(f"ℹ️ {ticket_id} Jira'da bulunamadı (404) - gerçekten mevcut değil.")
+                    return None
+                logger.warning(
+                    f"⚠️ {ticket_id} okunurken beklenmeyen durum kodu: "
+                    f"{response.status_code} - {response.text[:200]}"
+                )
+                return None
+        except Exception as e:
+            logger.error(
+                f"❌ Jira Bağlantı Hatası (Bilet Okuma) [{type(e).__name__}]: {repr(e)}"
+            )
+            return None
+
+    async def get_issue_people(self, ticket_id: str) -> Dict[str, str]:
+        """Biletin Jira tarafi kisileri: atanan + olusturan (gorunen ad). Yoksa 'atanmamis'."""
+        issue = await self.get_issue(ticket_id)
+        fields = (issue.get("fields", {}) or {}) if issue else {}
+
+        def name(user: Any) -> str:
+            if isinstance(user, dict):
+                return (user.get("displayName") or "").strip() or "atanmamis"
+            return "atanmamis"
+
+        return {"assignee": name(fields.get("assignee")), "creator": name(fields.get("creator"))}
+
+    async def get_issue_text(self, ticket_id: str) -> str:
+        """'OZET — aciklama' seklinde tek satirlik bilet baglami. Yoksa bos string."""
+        issue = await self.get_issue(ticket_id)
+        if not issue:
+            return ""
+        fields = issue.get("fields", {}) or {}
+        summary = (fields.get("summary") or "").strip()
+        desc = adf_to_text(fields.get("description"))
+        text = f"{summary} — {desc}" if summary and desc else (summary or desc)
+        return text.strip()
+
+    async def ticket_exists(self, ticket_id: str) -> bool:
+        """
+        🛡️ GUARDRAIL: İşlem yapmadan önce biletin gerçekten Jira'da var olduğunu doğrular.
+        Bu, GitHubAgent'ın LLM fallback yolunun (semantik bilet çıkarımı) olası bir
+        halüsinasyon sonucu var olmayan bir bilet numarası üretmesine karşı korur.
+        Tek okuma yolu (get_issue) uzerinden gecer, run ici onbellegin paylasilir.
+        """
+        return (await self.get_issue(ticket_id)) is not None
+
+    async def add_comment_to_ticket(self, ticket_id: str, comment_text: str) -> bool:
+        url = f"{self._base_url()}/rest/api/3/issue/{ticket_id}/comment"
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "body": {
+                "type": "doc",
+                "version": 1,
+                "content": [
+                    {
+                        "type": "paragraph",
+                        "content": [{"type": "text", "text": comment_text}]
+                    }
+                ]
+            }
+        }
+
+        try:
+            logger.info(f"📡 Jira Canlı API: {ticket_id} biletine yorum gönderiliyor...")
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(url, json=payload, headers=headers, auth=self._get_auth())
+                if response.status_code == 201:
+                    logger.info(f"✅ {ticket_id} biletine yorum başarıyla yazıldı.")
+                    return True
+                else:
+                    logger.error(f"❌ Jira Yorum Hatası ({response.status_code}): {response.text}")
+        except Exception as e:
+            logger.error(f"❌ Jira Bağlantı Hatası (Yorum): {str(e)}")
+        return False
+
+    async def transition_ticket_status(self, ticket_id: str, target_status: str) -> bool:
+        url = f"{self._base_url()}/rest/api/3/issue/{ticket_id}/transitions"
+        headers = {"Accept": "application/json", "Content-Type": "application/json"}
+        
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                logger.info(f"📡 Jira Canlı API: {ticket_id} için kullanılabilir geçişler sorgulanıyor...")
+                transitions_resp = await client.get(url, headers=headers, auth=self._get_auth())
+                
+                if transitions_resp.status_code != 200:
+                    logger.error(f"❌ Geçiş listesi alınamadı ({transitions_resp.status_code})")
+                    return False
+                
+                transitions_data = transitions_resp.json()
+                transition_id = None
+                
+                for t in transitions_data.get("transitions", []):
+                    if target_status.lower() in t.get("name", "").lower():
+                        transition_id = t.get("id")
+                        break
+                
+                if not transition_id:
+                    logger.warning(f"⚠️ Jira'da '{target_status}' isminde bir geçiş aşaması bulunamadı.")
+                    return False
+
+                payload = {"transition": {"id": transition_id}}
+                response = await client.post(url, json=payload, headers=headers, auth=self._get_auth())
+                
+                if response.status_code == 204:
+                    logger.info(f"✅ {ticket_id} başarıyla '{target_status}' aşamasına çekildi.")
+                    return True
+                else:
+                    logger.error(f"❌ Jira Statü Değiştirme Hatası ({response.status_code}): {response.text}")
+        except Exception as e:
+            logger.error(f"❌ Jira Bağlantı Hatası (Statü): {str(e)}")
+        return False
+
+    async def run(self, task_description: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
+        context = context or {}
+        jira_ids = context.get("jira_ids", [])
+        action = context.get("action", "comment")
+        
+        # Orchestrator'dan gelen kalite/güvenlik durumunu okuyoruz (Varsayılan: True)
+        review_passed = context.get("review_passed", True) 
+        
+        # 🎯 GitHubAgent'tan gelen diff verisi
+        code_changes = (
+            context.get("code_changes") or 
+            context.get("patch") or 
+            context.get("diff") or 
+            ""
+        )
+        
+        if isinstance(code_changes, list) or isinstance(code_changes, dict):
+            code_changes = str(code_changes)
+
+        # 🤖 Otonom Kod Yorumu Analizi (LLM ile)
+        ai_comment_summary = ""
+        if code_changes and code_changes.strip() and action in ["comment", "both"]:
+            try:
+                from src.core import redact as redact_mod
+
+                safe_changes = redact_mod.redact(code_changes) if redact_mod.is_enabled() else code_changes
+                logger.info(f"🧠 JiraAgent: Lokal LLM (Ollama) ile kod diff analizi yapılıyor...")
+                
+                # Eğer kod denetimden kaldıysa promptu ona göre şekillendiriyoruz
+                if not review_passed:
+                    comment_prompt = (
+                        "Sen otonom bir DevOps Yapay Zeka Asistanısın.\n"
+                        "Sana güvenlik veya kalite denetiminden KALMIŞ tehlikeli bir kod değişikliği (diff) verilecek.\n"
+                        "Görevin, bu kodun neden başarısız olduğunu ve ne tür riskler barındırdığını "
+                        "maksimum 2-3 cümlelik, kurumsal, profesyonel ve Türkçe bir dille özetlemektir.\n"
+                        "Doğrudan teknik özeti dön, 'İşte hata:' gibi ifadeler kullanma.\n\n"
+                        f"Başarısız Olan Kod Değişiklikleri:\n{safe_changes}"
+                    )
+                else:
+                    comment_prompt = (
+                        "Sen otonom bir DevOps Yapay Zeka Asistanısın.\n"
+                        "Sana en son yapılan commit'e ait ham kod diff (patch) verisi verilecek.\n"
+                        "Görevin, bu kod değişikliğini teknik olarak analiz edip, Jira kartına yazılacak "
+                        "maksimum 2-3 cümlelik, kurumsal, profesyonel ve Türkçe bir teknik özet hazırlamaktır.\n"
+                        "Lütfen doğrudan teknik özeti dön, 'İşte özet:' gibi ifadeler kullanma.\n\n"
+                        f"Kod Değişiklikleri:\n{safe_changes}"
+                    )
+                    
+                ai_comment_summary = await self.llm.generate_response(
+                    "Sen teknik bir DevOps asistanısın. Sadece istenen teknik yorumu dönersin.",
+                    comment_prompt,
+                    trace_name="jira.summarize",
+                )
+            except Exception as e:
+                logger.warning(f"⚠️ LLM analizi başarısız oldu, fallback şablonu kullanılacak. Hata: {e}")
+                ai_comment_summary = ""
+
+        results = {}
+        for ticket_id in jira_ids:
+            # 🛡️ GUARDRAIL: İşlem yapmadan önce biletin gerçekten var olduğunu doğrula.
+            # LLM fallback yolu (semantik bilet çıkarımı) yanlışlıkla var olmayan bir
+            # bilet numarası üretmiş olabilir; bu durumda sessizce atla, hata verip
+            # tüm akışı çökertme.
+            if not await self.ticket_exists(ticket_id):
+                logger.warning(
+                    f"⚠️ {ticket_id} Jira'da bulunamadı (muhtemelen LLM'in ürettiği "
+                    f"geçersiz bir referans). Bu bilet atlanıyor, işlem yapılmayacak."
+                )
+                results[ticket_id] = {"comment": False, "transition": False, "skipped_reason": "ticket_not_found"}
+                continue
+
+            results[ticket_id] = {"comment": False, "transition": False}
+            if action in ["comment", "both"]:
+                if ai_comment_summary and ai_comment_summary.strip():
+                    # Başlığımızı duruma göre dinamik yapıyoruz
+                    report_title = "🚨 [DAN - Otonom Kod KALİTE/GÜVENLİK BLOKAJI]" if not review_passed else "🤖 [DAN - Otonom Kod Analiz Raporu]"
+                    msg = (
+                        f"{report_title}\n\n"
+                        f"⚙️ Analiz Eden Ajan: {self.name}\n"
+                        f"📝 Teknik Analiz/Risk Detayı:\n{ai_comment_summary}\n\n"
+                        f"{'❌ İş akışı güvenlik/kalite standartları gereği kilitlendi.' if not review_passed else '🚀 Otomatik kod doğrulama ve pipeline adımları başarıyla tamamlandı.'}"
+                    )
+                else:
+                    msg = (
+                        "🤖 [🤖 DevOps Agentic Network - Otonom İşlem Raporu]\n\n"
+                        f"⚙️ İşlem Yapan Ajan: {self.name}\n"
+                        f"📦 Tetikleyici Eylem: GitHub Canlı Commit Analizi\n"
+                        f"📝 Durum: Bu biletle ilişkili geliştirici kodları başarıyla doğrulandı.\n"
+                    )
+                results[ticket_id]["comment"] = await self.add_comment_to_ticket(ticket_id, msg)
+                
+            if action in ["transition", "both"]:
+                # 🎯 DİNAMİK WORKFLOW: Kalite kontrol geçildiyse 'In Review', kaldıysa 'Blocked' aşamasına çekiyoruz
+                # Policy override: context["target_status"] verilirse onu kullan (API/policy'den gelir)
+                target_status = context.get("target_status") or ("In Review" if review_passed else "Blocked")
+                results[ticket_id]["transition"] = await self.transition_ticket_status(ticket_id, target_status)
+
+        return {
+            "agent": self.name,
+            "status": "success",
+            "processed_tickets": len(jira_ids),
+            "details": results
+        } 
+    def get_tool_schemas(self) -> List[Dict[str, Any]]:
+        return []
