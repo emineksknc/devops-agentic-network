@@ -6,7 +6,8 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     proxy: {
-      "/api": "http://localhost:8124",
+      // 127.0.0.1 sart: uvicorn yalnizca IPv4 dinler, "localhost" IPv6'ya cozulebilir (502).
+      "/api": "http://127.0.0.1:8124",
     },
   },
 });
