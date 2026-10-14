@@ -173,6 +173,9 @@ export interface Connection {
   max_tokens: number;
   webhook_secret: string;
   is_default: boolean;
+  is_disabled?: boolean;
+  created_at?: string;
+  disabled_at?: string;
 }
 
 export interface AgentInfo {

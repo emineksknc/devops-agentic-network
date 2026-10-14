@@ -10,6 +10,8 @@ const MAP: Record<string, [string, string]> = {
   applied: ["Uygulandı", "#10b981"],
   skipped: ["Atlandı", "#f59e0b"],
   mismatch: ["Eşleşmiyor", "#f59e0b"],
+  active: ["Aktif", "#10b981"],
+  disabled: ["Pasif", "#ef4444"],
 };
 
 export function StatusBadge({ status }: { status?: string | null }) {

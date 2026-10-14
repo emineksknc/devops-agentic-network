@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, isAdmin, type Connection } from "../api";
+import { api, formatDateTime, isAdmin, type Connection } from "../api";
 import { Field, Modal } from "../components/ui";
+import { StatusBadge } from "../components/badges";
 import { toast } from "../components/Toaster";
 
 type Kind = "github" | "jira" | "llm";
@@ -120,6 +121,16 @@ export function Settings() {
     }
   }
 
+  async function toggleConn(c: Connection) {
+    try {
+      await api.post(`/api/connections/${c.id}/toggle`, {});
+      toast(c.is_disabled ? "Bağlantı açıldı." : "Bağlantı kapatıldı.");
+      load();
+    } catch (e) {
+      toast(`Olmadı: ${(e as Error).message}`, false);
+    }
+  }
+
   async function remove(id: string) {
     if (!confirm("Silinsin mi?")) return;
     try {
@@ -166,45 +177,82 @@ export function Settings() {
         )}
       </div>
 
-      {groups.map(([kind, label]) => (
-        <div key={kind}>
-          <h2 className="text-sm font-semibold text-muted">{label}</h2>
-          <div className="grid gap-3 xl:grid-cols-2">
-            {conns.filter((c) => c.kind === kind).map((c) => (
-              <div key={c.id} className="card p-4 space-y-1">
-                <div className="flex items-center justify-between">
-                  <b className="text-sm">{c.name}</b>
-                  {c.is_default && <span className="text-xs text-ok">varsayılan</span>}
-                </div>
-                <div className="text-xs font-mono text-muted">{c.id}</div>
-                <div className="text-xs text-muted">
-                  {kind === "github" && `${c.base_url} · ${c.owner}`}
-                  {kind === "jira" && `${c.base_url} · ${c.project_key}`}
-                  {kind === "llm" && `${c.provider || "ollama"} · ${c.model}`}
-                </div>
-                <div className="flex gap-3 pt-1">
-                  <button className="text-xs text-accent-soft" onClick={() => test(c.id)}>
-                    Test
-                  </button>
-                  {isAdmin() && (
-                    <>
-                      <button className="text-xs text-accent-soft" onClick={() => openEdit(c)}>
-                        Düzenle
-                      </button>
-                      <button className="text-xs text-bad" onClick={() => remove(c.id)}>
-                        Sil
-                      </button>
-                    </>
+      {groups.map(([kind, label]) => {
+        const rows = conns.filter((c) => c.kind === kind);
+        const detail = (c: Connection) =>
+          kind === "github"
+            ? `${c.base_url} · ${c.owner}`
+            : kind === "jira"
+              ? `${c.base_url} · ${c.project_key}`
+              : `${c.provider || "ollama"} · ${c.model}`;
+        return (
+          <div key={kind}>
+            <h2 className="text-sm font-semibold text-muted">{label}</h2>
+            <div className="card overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-muted">
+                    <th className="px-4 py-2 font-semibold">Ad</th>
+                    <th className="px-4 py-2 font-semibold">Durum</th>
+                    <th className="px-4 py-2 font-semibold">Detay</th>
+                    <th className="px-4 py-2 font-semibold">Oluşturma</th>
+                    <th className="px-4 py-2 font-semibold">Devre dışı</th>
+                    <th className="px-4 py-2 font-semibold text-right">İşlemler</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-3 text-xs text-muted">
+                        Kayıt yok.
+                      </td>
+                    </tr>
                   )}
-                </div>
-              </div>
-            ))}
-            {conns.filter((c) => c.kind === kind).length === 0 && (
-              <div className="card p-4 text-xs text-muted">Kayıt yok.</div>
-            )}
+                  {rows.map((c) => (
+                    <tr key={c.id} className="border-t" style={{ borderColor: "#1e293b" }}>
+                      <td className="px-4 py-2">
+                        <b>{c.name}</b>{" "}
+                        <span className="text-xs font-mono text-muted">{c.id}</span>
+                        {c.is_default && <span className="text-xs text-ok"> · varsayılan</span>}
+                      </td>
+                      <td className="px-4 py-2">
+                        <StatusBadge status={c.is_disabled ? "disabled" : "active"} />
+                      </td>
+                      <td className="px-4 py-2 text-xs text-muted">{detail(c) || "—"}</td>
+                      <td className="px-4 py-2 text-xs text-muted">
+                        {c.created_at ? formatDateTime(c.created_at) : "—"}
+                      </td>
+                      <td className="px-4 py-2 text-xs text-muted">
+                        {c.disabled_at ? formatDateTime(c.disabled_at) : "—"}
+                      </td>
+                      <td className="px-4 py-2">
+                        <div className="flex gap-3 justify-end">
+                          <button className="text-xs text-accent-soft" onClick={() => test(c.id)}>
+                            Test
+                          </button>
+                          {isAdmin() && (
+                            <>
+                              <button className="text-xs text-accent-soft" onClick={() => openEdit(c)}>
+                                Düzenle
+                              </button>
+                              <button className="text-xs text-accent-soft" onClick={() => toggleConn(c)}>
+                                {c.is_disabled ? "Aç" : "Kapat"}
+                              </button>
+                              <button className="text-xs text-bad" onClick={() => remove(c.id)}>
+                                Sil
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       <div className="card p-4 flex items-center justify-between">
         <div>

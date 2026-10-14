@@ -37,6 +37,9 @@ def _to_out(r) -> ConnectionOut:
         max_tokens=int(_num(r, "max_tokens", 2048)) if "max_tokens" in keys else 2048,
         webhook_secret=(MASKED if r["webhook_secret"] else "") if "webhook_secret" in keys else "",
         is_default=bool(r["is_default"]),
+        is_disabled=bool(r["is_disabled"]) if "is_disabled" in keys else False,
+        created_at=(r["created_at"] or "") if "created_at" in keys else "",
+        disabled_at=(r["disabled_at"] or "") if "disabled_at" in keys else "",
     )
 
 
@@ -52,19 +55,24 @@ async def list_connections(kind: str = "") -> list[ConnectionOut]:
 
 @router.post("", response_model=ConnectionOut, status_code=201)
 async def create_connection(body: ConnectionIn, _admin: dict = Depends(require_roles("admin"))) -> ConnectionOut:
+    from datetime import datetime, timezone
+
     conn_id = f"{body.kind}-{uuid.uuid4().hex[:6]}"
+    now = datetime.now(timezone.utc).isoformat()
     with db.connect() as conn:
         if body.is_default:
             conn.execute("UPDATE connections SET is_default=0 WHERE kind=?", (body.kind,))
         conn.execute(
-            "INSERT INTO connections (id, kind, name, base_url, owner, email, token, project_key, provider, model, temperature, max_tokens, webhook_secret, is_default)"
-            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO connections (id, kind, name, base_url, owner, email, token, project_key, provider, model, temperature, max_tokens, webhook_secret, is_default,"
+            " is_disabled, created_at, disabled_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (conn_id, body.kind, body.name, body.base_url, body.owner, body.email,
              secrets_mod.encrypt(body.token), body.project_key, body.provider, body.model,
-             body.temperature, body.max_tokens, secrets_mod.encrypt(body.webhook_secret), int(body.is_default)),
+             body.temperature, body.max_tokens, secrets_mod.encrypt(body.webhook_secret), int(body.is_default),
+             0, now, ""),
         )
     out = body.model_dump()
     out["token"] = MASKED if body.token else ""
+    out["created_at"] = now
     return ConnectionOut(id=conn_id, **out)
 
 
@@ -98,6 +106,28 @@ async def delete_connection(conn_id: str, _admin: dict = Depends(require_roles("
         if cur.rowcount == 0:
             raise HTTPException(404, "baglanti bulunamadi")
     return {"deleted": conn_id}
+
+
+@router.post("/{conn_id}/toggle", response_model=ConnectionOut)
+async def toggle_connection(conn_id: str, _admin: dict = Depends(require_roles("admin"))) -> ConnectionOut:
+    """Aktif/pasif anahtari. Pasif baglanti varsayilan secime girmez, run'lar onu kullanmaz."""
+    from datetime import datetime, timezone
+
+    with db.connect() as conn:
+        r = db.row_to_dict(conn.execute("SELECT * FROM connections WHERE id=?", (conn_id,)).fetchone())
+        if not r:
+            raise HTTPException(404, "baglanti bulunamadi")
+        cols = {c["name"] for c in conn.execute("PRAGMA table_info(connections)").fetchall()}
+        if "is_disabled" not in cols:
+            raise HTTPException(409, "DB migrasyonu eksik: server'i yeniden baslat")
+        new_disabled = 0 if r.get("is_disabled") else 1
+        now = datetime.now(timezone.utc).isoformat()
+        conn.execute(
+            "UPDATE connections SET is_disabled=?, disabled_at=? WHERE id=?",
+            (new_disabled, now if new_disabled else "", conn_id),
+        )
+        r = db.row_to_dict(conn.execute("SELECT * FROM connections WHERE id=?", (conn_id,)).fetchone())
+    return _to_out(r)
 
 
 @router.post("/{conn_id}/test")

@@ -207,6 +207,27 @@ def test_run_list_verdict_flags(client):
     assert row["blocked_count"] == 2
 
 
+def test_connection_disable_hides_from_default(client):
+    from src.api import db as dbmod
+
+    admin = _admin_headers(client)
+    body = {"name": "GH", "kind": "github", "base_url": "", "owner": "o", "email": "",
+            "token": "t", "project_key": "", "provider": "", "model": "",
+            "temperature": 0.3, "max_tokens": 2048, "webhook_secret": "", "is_default": True}
+    created = client.post("/api/connections", json=body, headers=admin).json()
+    assert created["is_disabled"] is False and created["created_at"]
+    cid = created["id"]
+    off = client.post(f"/api/connections/{cid}/toggle", headers=admin).json()
+    assert off["is_disabled"] is True and off["disabled_at"]
+    with dbmod.connect() as conn:
+        assert dbmod.default_connection(conn, "github") is None
+        listed = client.get("/api/connections", headers=admin).json()
+        assert next(x for x in listed if x["id"] == cid)["is_disabled"] is True
+    on = client.post(f"/api/connections/{cid}/toggle", headers=admin).json()
+    assert on["is_disabled"] is False and on["disabled_at"] == ""
+    assert client.post(f"/api/connections/{cid}/toggle", headers=BAD).status_code == 401
+
+
 def test_duration_seconds():
     from src.api.routes.runs import duration_seconds
 

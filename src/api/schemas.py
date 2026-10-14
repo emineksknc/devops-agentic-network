@@ -116,6 +116,9 @@ class ConnectionIn(BaseModel):
 
 class ConnectionOut(ConnectionIn):
     id: str
+    is_disabled: bool = False
+    created_at: str = ""
+    disabled_at: str = ""
 
 
 class HealthOut(BaseModel):

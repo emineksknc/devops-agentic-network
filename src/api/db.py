@@ -90,7 +90,10 @@ def init_db() -> None:
                 temperature REAL NOT NULL DEFAULT 0.3,
                 max_tokens INTEGER NOT NULL DEFAULT 2048,
                 webhook_secret TEXT NOT NULL DEFAULT '',
-                is_default INTEGER NOT NULL DEFAULT 0
+                is_default INTEGER NOT NULL DEFAULT 0,
+                is_disabled INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT '',
+                disabled_at TEXT NOT NULL DEFAULT ''
             );
             -- Ajan ozellestirme: ac/kapa + system prompt override
             CREATE TABLE IF NOT EXISTS agent_configs (
@@ -150,7 +153,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
     for table, wanted in {
         "runs": ["github_conn_id", "jira_conn_id", "llm_conn_id", "llm_provider", "llm_model", "finished_at"],
         "policies": ["github_conn_id", "jira_conn_id"],
-        "connections": ["provider", "model", "temperature", "max_tokens", "webhook_secret"],
+        "connections": ["provider", "model", "temperature", "max_tokens", "webhook_secret",
+                        "is_disabled", "created_at", "disabled_at"],
         "jira_actions": ["target_status"],
         "commit_units": ["jira_people"],
     }.items():
@@ -196,11 +200,12 @@ def get_connection(conn: sqlite3.Connection, conn_id: str) -> Optional[dict[str,
 def default_connection(conn: sqlite3.Connection, kind: str) -> Optional[dict[str, Any]]:
     from src.core import secrets as secrets_mod
 
+    # Pasif baglantilar varsayilan secime girmez (acik secim get_connection ile hala mumkun)
     r = conn.execute(
-        "SELECT * FROM connections WHERE kind=? AND is_default=1 LIMIT 1", (kind,)
+        "SELECT * FROM connections WHERE kind=? AND is_default=1 AND is_disabled=0 LIMIT 1", (kind,)
     ).fetchone()
     if r is None:
-        r = conn.execute("SELECT * FROM connections WHERE kind=? LIMIT 1", (kind,)).fetchone()
+        r = conn.execute("SELECT * FROM connections WHERE kind=? AND is_disabled=0 LIMIT 1", (kind,)).fetchone()
     d = row_to_dict(r)
     if d:
         d["token"] = secrets_mod.decrypt(d.get("token") or "")
