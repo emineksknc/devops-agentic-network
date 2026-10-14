@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, formatDateTime, formatDuration, timeAgo, type RunDetail } from "../api";
-import { Chip, StatusBadge } from "../components/badges";
+import { Chip, GithubMark, JiraMark, StatusBadge } from "../components/badges";
 import { toast } from "../components/Toaster";
 
 function repoUrl(repo: string) {
@@ -168,15 +168,16 @@ export function RunDetail() {
               ))}
             </div>
             <div className="text-sm font-semibold">{u.message}</div>
-            <div className="rounded-md px-2.5 py-1 grid gap-0.5 text-xs" style={{ background: "#0b1326" }}>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-muted">GitHub yazarı</span>
+            <div className="rounded-md px-2 py-0.5 text-xs" style={{ background: "#0b1326", color: "#94a3b8" }}>
+              <div className="flex items-center gap-1.5">
+                <GithubMark />
                 {u.author ? (
                   <a
                     href={`https://github.com/${u.author}`}
                     target="_blank"
                     rel="noreferrer"
                     className="font-mono hover:underline"
+                    title="GitHub yazarı"
                   >
                     @{u.author}
                   </a>
@@ -185,21 +186,23 @@ export function RunDetail() {
                 )}
               </div>
               {Object.entries(u.jira_people || {}).map(([tid, p]) => (
-                <div key={tid} className="flex items-center justify-between gap-2">
+                <div key={tid} className="flex items-center gap-1.5">
+                  <JiraMark />
                   {ticketUrl(run.jira_base_url, tid) ? (
                     <a
                       href={ticketUrl(run.jira_base_url, tid)}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-muted hover:underline"
+                      className="font-mono hover:underline"
+                      title="Jira bileti"
                     >
-                      Jira {tid}
+                      {tid}
                     </a>
                   ) : (
-                    <span className="text-muted">Jira {tid}</span>
+                    <span className="font-mono">{tid}</span>
                   )}
-                  <span className="font-mono">
-                    oluşturan: {p.creator || "?"} · atanan: {p.assignee || "?"}
+                  <span className="font-mono" title="oluşturan → atanan">
+                    {p.creator || "?"} → {p.assignee || "?"}
                   </span>
                 </div>
               ))}
