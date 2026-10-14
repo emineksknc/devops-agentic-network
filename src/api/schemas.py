@@ -120,5 +120,5 @@ class ConnectionOut(ConnectionIn):
 
 class HealthOut(BaseModel):
     status: str = "ok"
-    version: str = "0.2.0"
+    version: str = "0.3.0"
     data: dict[str, Any] = {}
