@@ -6,9 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from src.api import db
 from src.api.schemas import ConnectionIn, ConnectionOut
-from src.core.auth import require_roles
+from src.core.auth import require_roles, get_current_user
 
-router = APIRouter(prefix="/api/connections", tags=["connections"])
+router = APIRouter(prefix="/api/connections", tags=["connections"], dependencies=[Depends(get_current_user)])
 
 
 MASKED = "***masked***"

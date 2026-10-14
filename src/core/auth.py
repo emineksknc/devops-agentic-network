@@ -86,6 +86,14 @@ async def get_current_user(
     return user
 
 
+async def get_optional_user(
+    creds: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
+) -> Optional[dict]:
+    if not creds or not creds.credentials:
+        return None
+    return _user_by_session(creds.credentials)
+
+
 def require_roles(*roles: str):
     async def guard(user: dict = Depends(get_current_user)) -> dict:
         if user.get("role") not in roles:

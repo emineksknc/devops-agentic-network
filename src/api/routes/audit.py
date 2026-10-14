@@ -1,9 +1,11 @@
 """Denetim izi: tum run'larin Jira aksiyonlari, degistirilemez salt-okunur gorunum."""
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from src.api import db
 
-router = APIRouter(prefix="/api/audit", tags=["audit"])
+from src.core.auth import get_current_user
+
+router = APIRouter(prefix="/api/audit", tags=["audit"], dependencies=[Depends(get_current_user)])
 
 
 @router.get("")

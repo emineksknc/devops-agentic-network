@@ -18,7 +18,15 @@ def client(tmp_path, monkeypatch):
     from src.api.app import app
 
     with TestClient(app) as c:
+        # Testler admin oturumuyla kosar; kilitsiz cagrilar BAD ile denenir
+        c.post("/api/auth/register", json={"username": ADMIN_USER, "password": ADMIN_PASS})
+        tok = c.post("/api/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS}).json()["token"]
+        c.headers.update({"Authorization": f"Bearer {tok}"})
         yield c
+
+
+ADMIN_USER, ADMIN_PASS = "sistem-admin", "sistem-parola-1"
+BAD = {"Authorization": "Bearer gecersiz-token"}
 
 
 def test_health(client):
@@ -27,19 +35,25 @@ def test_health(client):
     assert r.json()["status"] == "ok"
 
 
-def _auth_headers(client, username: str = "kurucu", password: str = "guclu-parola-1") -> dict:
+def _auth_headers(client, username: str, password: str = "guclu-parola-1") -> dict:
+    # Kayit davet usuludur: fixture adminiyle acilir (409 yoksayilir), giris yapilir
     client.post("/api/auth/register", json={"username": username, "password": password})
     tok = client.post("/api/auth/login", json={"username": username, "password": password}).json()["token"]
     return {"Authorization": f"Bearer {tok}"}
 
 
+def _admin_headers(client) -> dict:
+    tok = client.post("/api/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS}).json()["token"]
+    return {"Authorization": f"Bearer {tok}"}
+
+
 def test_connection_writes_require_admin(client):
-    admin = _auth_headers(client, "kurucu")
+    admin = _admin_headers(client)
     viewer = _auth_headers(client, "eleman", "guclu-parola-2")
     body = {"name": "GH", "kind": "github", "base_url": "", "owner": "o", "email": "",
             "token": "", "project_key": "", "provider": "", "model": "",
             "temperature": 0.3, "max_tokens": 2048, "webhook_secret": "", "is_default": False}
-    assert client.put("/api/connections/x", json=body).status_code == 401
+    assert client.put("/api/connections/x", json=body, headers=BAD).status_code == 401
     assert client.post("/api/connections", json=body, headers=viewer).status_code == 403
     created = client.post("/api/connections", json=body, headers=admin).json()
     cid = created["id"]
@@ -48,8 +62,7 @@ def test_connection_writes_require_admin(client):
 
 
 def test_approve_requires_approver(client):
-    assert client.post("/api/runs/yok/approve", json={"approved": True}).status_code == 401
-    _auth_headers(client, "kurucu")  # ilk kayit: admin
+    assert client.post("/api/runs/yok/approve", json={"approved": True}, headers=BAD).status_code == 401
     viewer = _auth_headers(client, "eleman", "guclu-parola-2")  # viewer
     r = client.post("/api/runs/yok/approve", json={"approved": True}, headers=viewer)
     assert r.status_code == 403
@@ -58,12 +71,12 @@ def test_approve_requires_approver(client):
 def test_connections_start_empty_then_create(client):
     # Varsayilan tohum YOK: bos envanterle baslar, UI/API ile eklenir
     assert client.get("/api/connections").json() == []
-    admin = _auth_headers(client, "kurucu", "guclu-parola-1")
+    admin = _admin_headers(client)
     body = {"name": "GH", "kind": "github", "base_url": "https://api.github.com",
             "owner": "o", "email": "", "token": "secret-token", "project_key": "",
             "provider": "", "model": "", "temperature": 0.3, "max_tokens": 2048,
             "webhook_secret": "", "is_default": True}
-    denied = client.post("/api/connections", json=body)
+    denied = client.post("/api/connections", json=body, headers=BAD)
     assert denied.status_code == 401
     created = client.post("/api/connections", json=body, headers=admin).json()
     assert created["token"] == "***masked***"

@@ -1,10 +1,12 @@
 """Policy CRUD: repo -> Jira yonetisim kurallari."""
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 
 from src.api import db
 from src.api.schemas import PolicyIn, PolicyOut
 
-router = APIRouter(prefix="/api/policies", tags=["policies"])
+from src.core.auth import get_current_user
+
+router = APIRouter(prefix="/api/policies", tags=["policies"], dependencies=[Depends(get_current_user)])
 
 
 def _row_to_policy(r) -> PolicyOut:

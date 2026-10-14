@@ -27,6 +27,8 @@ export function Settings() {
   const [form, setForm] = useState(BLANK);
   const [models, setModels] = useState<{ name: string; source?: string }[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
+  const [users, setUsers] = useState<{ id: string; username: string; role: string }[]>([]);
+  const [newUser, setNewUser] = useState({ username: "", password: "" });
   const [redact, setRedact] = useState(true);
 
   const load = useCallback(async () => {
@@ -39,6 +41,12 @@ export function Settings() {
       setRedact(s.redact_secrets);
     } catch (e) {
       toast(`Yüklenemedi: ${(e as Error).message}`, false);
+    }
+    // Kullanici listesi adminlere ozel; 403 yerse kart gizlenir
+    try {
+      setUsers(await api.get<{ id: string; username: string; role: string }[]>("/api/auth/users"));
+    } catch {
+      setUsers([]);
     }
   }, []);
 
@@ -195,6 +203,70 @@ export function Settings() {
         </div>
         <input type="checkbox" checked={redact} onChange={(e) => toggleRedact(e.target.checked)} />
       </div>
+
+      {users.length > 0 && (
+        <div className="card p-4 space-y-3">
+          <div>
+            <b className="text-sm">Kullanıcılar (yalnızca admin)</b>
+            <div className="text-xs text-muted">Kayıt davet usulüdür; yeni hesabı buradan açarsın.</div>
+          </div>
+          {users.map((u) => (
+            <div key={u.id} className="flex items-center justify-between gap-2 text-sm">
+              <span className="font-mono">{u.username}</span>
+              <select
+                className="input sm:max-w-xs"
+                value={u.role}
+                onChange={async (e) => {
+                  try {
+                    await api.put(`/api/auth/users/${u.id}`, { role: e.target.value });
+                    toast("Rol güncellendi.");
+                    load();
+                  } catch (err) {
+                    toast(`Olmadı: ${(err as Error).message}`, false);
+                  }
+                }}
+              >
+                <option value="viewer">viewer</option>
+                <option value="approver">approver</option>
+                <option value="admin">admin</option>
+              </select>
+            </div>
+          ))}
+          <div className="grid sm:grid-cols-3 gap-2">
+            <input
+              className="input font-mono"
+              placeholder="kullanıcı adı"
+              value={newUser.username}
+              onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+            />
+            <input
+              className="input font-mono"
+              type="password"
+              placeholder="parola (8+)"
+              value={newUser.password}
+              onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+            />
+            <button
+              className="btn-primary"
+              onClick={async () => {
+                try {
+                  await api.post("/api/auth/register", {
+                    username: newUser.username.trim(),
+                    password: newUser.password,
+                  });
+                  setNewUser({ username: "", password: "" });
+                  toast("Kullanıcı açıldı (viewer).");
+                  load();
+                } catch (err) {
+                  toast(`Açılamadı: ${(err as Error).message}`, false);
+                }
+              }}
+            >
+              Kullanıcı Aç
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="card p-4 text-xs text-muted font-mono">
         Webhook endpoint: {window.location.origin}/api/webhooks/github

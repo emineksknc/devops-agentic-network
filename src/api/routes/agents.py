@@ -1,11 +1,13 @@
 """Ajan yonetimi: liste, ac/kapa, system prompt override."""
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from src.api import db
 from src.core.registry import registry
 
-router = APIRouter(prefix="/api/agents", tags=["agents"])
+from src.core.auth import get_current_user
+
+router = APIRouter(prefix="/api/agents", tags=["agents"], dependencies=[Depends(get_current_user)])
 
 
 class AgentUpdate(BaseModel):

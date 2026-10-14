@@ -1,11 +1,13 @@
 """Developer bazinda izlenebilirlik: kim ne yapti.
 Veri commit_units.author'dan gelir (GitHub API), ek baglanti gerekmez.
 """
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from src.api import db
 
-router = APIRouter(prefix="/api/developers", tags=["developers"])
+from src.core.auth import get_current_user
+
+router = APIRouter(prefix="/api/developers", tags=["developers"], dependencies=[Depends(get_current_user)])
 
 
 @router.get("")

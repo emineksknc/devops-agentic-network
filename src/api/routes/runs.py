@@ -9,10 +9,10 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
 from src.api import db
 from src.api.schemas import ApproveIn, CommitUnitOut, JiraActionOut, RunCreate, RunDetailOut, RunEventOut, RunOut
-from src.core.auth import require_roles
+from src.core.auth import require_roles, get_current_user
 
 logger = logging.getLogger("api.runs")
-router = APIRouter(prefix="/api/runs", tags=["runs"])
+router = APIRouter(prefix="/api/runs", tags=["runs"], dependencies=[Depends(get_current_user)])
 
 
 def _now() -> str:

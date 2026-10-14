@@ -19,12 +19,19 @@ def client(tmp_path, monkeypatch):
         yield c
 
 
-def test_first_user_is_admin_second_is_viewer(client):
+def test_first_user_is_admin_second_needs_invite(client):
     a = client.post("/api/auth/register", json={"username": "kurucu", "password": "guclu-parola-1"}).json()
     assert a["role"] == "admin"
-    b = client.post("/api/auth/register", json={"username": "izleyici", "password": "guclu-parola-2"}).json()
+    # Kayit kapandi: davetsiz ikinci kayit 401, viewer biletiyle 403
+    assert client.post("/api/auth/register", json={"username": "izleyici", "password": "guclu-parola-2"}).status_code == 401
+    ta = client.post("/api/auth/login", json={"username": "kurucu", "password": "guclu-parola-1"}).json()["token"]
+    ha = {"Authorization": f"Bearer {ta}"}
+    b = client.post("/api/auth/register", json={"username": "izleyici", "password": "guclu-parola-2"}, headers=ha).json()
     assert b["role"] == "viewer"
-    dup = client.post("/api/auth/register", json={"username": "kurucu", "password": "baska-parola-3"})
+    tb = client.post("/api/auth/login", json={"username": "izleyici", "password": "guclu-parola-2"}).json()["token"]
+    hb = {"Authorization": f"Bearer {tb}"}
+    assert client.post("/api/auth/register", json={"username": "ucuncu", "password": "guclu-parola-3"}, headers=hb).status_code == 403
+    dup = client.post("/api/auth/register", json={"username": "kurucu", "password": "baska-parola-3"}, headers=ha)
     assert dup.status_code == 409
 
 
@@ -43,10 +50,10 @@ def test_login_me_logout_cycle(client):
 
 def test_only_admin_changes_roles(client):
     a = client.post("/api/auth/register", json={"username": "kurucu", "password": "guclu-parola-1"}).json()
-    b = client.post("/api/auth/register", json={"username": "eleman", "password": "guclu-parola-2"}).json()
     ta = client.post("/api/auth/login", json={"username": "kurucu", "password": "guclu-parola-1"}).json()["token"]
-    tb = client.post("/api/auth/login", json={"username": "eleman", "password": "guclu-parola-2"}).json()["token"]
     ha = {"Authorization": f"Bearer {ta}"}
+    b = client.post("/api/auth/register", json={"username": "eleman", "password": "guclu-parola-2"}, headers=ha).json()
+    tb = client.post("/api/auth/login", json={"username": "eleman", "password": "guclu-parola-2"}).json()["token"]
     hb = {"Authorization": f"Bearer {tb}"}
     denied = client.put(f"/api/auth/users/{b['id']}", json={"role": "approver"}, headers=hb)
     assert denied.status_code == 403

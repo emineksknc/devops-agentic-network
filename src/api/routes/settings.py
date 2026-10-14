@@ -1,10 +1,12 @@
 """Global uygulama ayarlari (anahtar-deger)."""
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from src.api import db
 
-router = APIRouter(prefix="/api/settings", tags=["settings"])
+from src.core.auth import get_current_user
+
+router = APIRouter(prefix="/api/settings", tags=["settings"], dependencies=[Depends(get_current_user)])
 
 
 class SettingsIn(BaseModel):

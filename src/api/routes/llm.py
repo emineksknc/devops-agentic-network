@@ -2,12 +2,14 @@
 Settings'teki model dropdown'i buradan beslenir; elle yazma devri biter.
 """
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 
 from src.api import db
 from src.config.settings import settings
 
-router = APIRouter(prefix="/api/llm", tags=["llm"])
+from src.core.auth import get_current_user
+
+router = APIRouter(prefix="/api/llm", tags=["llm"], dependencies=[Depends(get_current_user)])
 
 
 @router.get("/models")

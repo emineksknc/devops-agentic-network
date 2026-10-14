@@ -2,11 +2,13 @@
 Politika/run modal'larindaki secimler buradan beslenir; elle yazma kalmaz.
 """
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 
 from src.api import db
 
-router = APIRouter(tags=["inventory"])
+from src.core.auth import get_current_user
+
+router = APIRouter(tags=["inventory"], dependencies=[Depends(get_current_user)])
 
 
 def _conn_or_default(conn_id: str, kind: str) -> dict:
