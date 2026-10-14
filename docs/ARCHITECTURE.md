@@ -21,7 +21,7 @@ plan (LLM, sadece karar) -> github -> reviewer -> jira -> reporter
 
 ## Baglantilar (connections)
 
-Turler: `github | jira | llm`. Secret'lar DB'de duz metin durur, API **maskeli** doner
+Turler: `github | jira | llm`. Secret'lar DB'de Fernet ile **sifreli** durur, API **maskeli** doner
 (`***masked***`); bos/maskeli gonderim mevcut secreti korur. **Tohumlama yoktur**:
 bos DB bos envanterle acilir, herkes baglantisini UI/API ile ekler.
 

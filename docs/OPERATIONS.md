@@ -33,7 +33,9 @@ cd frontend-react; npm run build; cd ..
 
 ## Token yonetimi (UI)
 
-* Tokenlar yalnizca Ayarlar sayfasindan girilir (DB'de duz metin, API'de maskeli).
+* Tokenlar yalnizca Ayarlar sayfasindan girilir (DB'de sifreli, API'de maskeli).
+* **Anahtar yedegi:** `data/secret.key` (veya `DAN_SECRET_KEY`) kaybolursa kayitli
+  token'lar COZULEMEZ. Dosyayi yedekle, repoya koyma, kimseyle paylasma.
 * Test butonu once kaydeder, sonra dener; sonuc kalici satirda yazar.
 * GitHub fine-grained PAT: ilgili repo **Repository access**'te secili olmali,
   yoksa `403 Resource not accessible` verir (repo YOK degil, YETKI yok).

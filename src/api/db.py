@@ -1,5 +1,6 @@
 """SQLite kalicilik katmani. Basit tutuldu: stdlib sqlite3, WAL modu."""
 import json
+import logging
 import sqlite3
 from pathlib import Path
 from typing import Any, Optional
@@ -157,20 +158,54 @@ def _migrate(conn: sqlite3.Connection) -> None:
         for col in wanted:
             if col not in have:
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} TEXT NOT NULL DEFAULT ''")
+    _seal_legacy_secrets(conn)
+
+
+def _seal_legacy_secrets(conn: sqlite3.Connection) -> None:
+    """Acik metin kalmis token/secret'lari yerinde sifreler (tek yonlu migrasyon)."""
+    from src.core import secrets as secrets_mod
+
+    try:
+        rows = conn.execute("SELECT id, token, webhook_secret FROM connections").fetchall()
+    except Exception:
+        return
+    for r in rows:
+        updates: dict[str, str] = {}
+        if r["token"] and not secrets_mod.is_encrypted(r["token"]):
+            updates["token"] = secrets_mod.encrypt(r["token"])
+        if r["webhook_secret"] and not secrets_mod.is_encrypted(r["webhook_secret"]):
+            updates["webhook_secret"] = secrets_mod.encrypt(r["webhook_secret"])
+        for col, val in updates.items():
+            conn.execute(f"UPDATE connections SET {col}=? WHERE id=?", (val, r["id"]))
+    if rows:
+        logger = logging.getLogger("dan.db")
+        logger.info("Secret migrasyonu tamamlandi (%d baglanti tarandi).", len(rows))
 
 
 def get_connection(conn: sqlite3.Connection, conn_id: str) -> Optional[dict[str, Any]]:
+    from src.core import secrets as secrets_mod
+
     r = conn.execute("SELECT * FROM connections WHERE id=?", (conn_id,)).fetchone()
-    return row_to_dict(r)
+    d = row_to_dict(r)
+    if d:
+        d["token"] = secrets_mod.decrypt(d.get("token") or "")
+        d["webhook_secret"] = secrets_mod.decrypt(d.get("webhook_secret") or "")
+    return d
 
 
 def default_connection(conn: sqlite3.Connection, kind: str) -> Optional[dict[str, Any]]:
+    from src.core import secrets as secrets_mod
+
     r = conn.execute(
         "SELECT * FROM connections WHERE kind=? AND is_default=1 LIMIT 1", (kind,)
     ).fetchone()
     if r is None:
         r = conn.execute("SELECT * FROM connections WHERE kind=? LIMIT 1", (kind,)).fetchone()
-    return row_to_dict(r)
+    d = row_to_dict(r)
+    if d:
+        d["token"] = secrets_mod.decrypt(d.get("token") or "")
+        d["webhook_secret"] = secrets_mod.decrypt(d.get("webhook_secret") or "")
+    return d
 
 
 def row_to_dict(row: Optional[sqlite3.Row]) -> Optional[dict[str, Any]]:

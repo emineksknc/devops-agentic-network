@@ -1,11 +1,12 @@
 """Baglanti envanteri: birden fazla GitHub org / Jira sitesi / LLM.
-NOT(v1): token'lar SQLite'da duz metin durur; dosya izni + vault plani sart."""
+Token'lar Fernet ile sifreli saklanir (src/core/secrets); API maskeli doner."""
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 
 from src.api import db
 from src.api.schemas import ConnectionIn, ConnectionOut
+from src.core import secrets as secrets_mod
 from src.core.auth import require_roles, get_current_user
 
 router = APIRouter(prefix="/api/connections", tags=["connections"], dependencies=[Depends(get_current_user)])
@@ -59,8 +60,8 @@ async def create_connection(body: ConnectionIn, _admin: dict = Depends(require_r
             "INSERT INTO connections (id, kind, name, base_url, owner, email, token, project_key, provider, model, temperature, max_tokens, webhook_secret, is_default)"
             " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (conn_id, body.kind, body.name, body.base_url, body.owner, body.email,
-             body.token, body.project_key, body.provider, body.model,
-             body.temperature, body.max_tokens, body.webhook_secret, int(body.is_default)),
+             secrets_mod.encrypt(body.token), body.project_key, body.provider, body.model,
+             body.temperature, body.max_tokens, secrets_mod.encrypt(body.webhook_secret), int(body.is_default)),
         )
     out = body.model_dump()
     out["token"] = MASKED if body.token else ""
@@ -73,7 +74,7 @@ async def update_connection(conn_id: str, body: ConnectionIn, _admin: dict = Dep
         r = db.row_to_dict(conn.execute("SELECT * FROM connections WHERE id=?", (conn_id,)).fetchone())
         if not r:
             raise HTTPException(404, "baglanti bulunamadi")
-        # Maskeli/bos token gelirse mevcut secret korunur
+        # Maskeli/bos token gelirse mevcut secret korunur (DB'de sifreli durur, oldugu gibi yazilir)
         token = r["token"] if body.token in ("", MASKED) else body.token
         secret = r["webhook_secret"] if body.webhook_secret in ("", MASKED) else body.webhook_secret
         if body.is_default:
@@ -81,9 +82,9 @@ async def update_connection(conn_id: str, body: ConnectionIn, _admin: dict = Dep
         conn.execute(
             """UPDATE connections SET name=?, base_url=?, owner=?, email=?, token=?,
                project_key=?, provider=?, model=?, temperature=?, max_tokens=?, webhook_secret=?, is_default=? WHERE id=?""",
-            (body.name, body.base_url, body.owner, body.email, token,
+            (body.name, body.base_url, body.owner, body.email, secrets_mod.encrypt(token),
              body.project_key, body.provider, body.model,
-             body.temperature, body.max_tokens, secret, int(body.is_default), conn_id),
+             body.temperature, body.max_tokens, secrets_mod.encrypt(secret), int(body.is_default), conn_id),
         )
     out = body.model_dump()
     out["token"] = MASKED if token else ""
@@ -109,13 +110,15 @@ async def test_connection(conn_id: str) -> dict:
     if not r:
         raise HTTPException(404, "baglanti bulunamadi")
     kind = r["kind"]
+    # DB sifreli durur; canli deneme icin coz (maskeleme _to_out'ta ayri yol, etkilenmez)
+    token = secrets_mod.decrypt(r["token"] or "")
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             if kind == "github":
                 base = (r["base_url"] or "https://api.github.com").rstrip("/")
                 resp = await client.get(
                     f"{base}/rate_limit",
-                    headers={"Authorization": f"token {r['token']}", "User-Agent": "DAN-test"},
+                    headers={"Authorization": f"token {token}", "User-Agent": "DAN-test"},
                 )
                 ok = resp.status_code == 200
                 return {"ok": ok, "status": resp.status_code,
@@ -123,7 +126,7 @@ async def test_connection(conn_id: str) -> dict:
             if kind == "jira":
                 base = (r["base_url"] or "").rstrip("/")
                 resp = await client.get(f"{base}/rest/api/3/myself",
-                                        auth=(r["email"], r["token"]))
+                                        auth=(r["email"], token))
                 ok = resp.status_code == 200
                 return {"ok": ok, "status": resp.status_code,
                         "detail": "baglanti saglam" if ok else resp.text[:200]}
@@ -141,14 +144,14 @@ async def test_connection(conn_id: str) -> dict:
                 if provider == "openai":
                     base = (r["base_url"] or "https://api.openai.com/v1").rstrip("/")
                     resp = await client.get(f"{base}/models",
-                                            headers={"Authorization": f"Bearer {r['token']}"})
+                                            headers={"Authorization": f"Bearer {token}"})
                     ok = resp.status_code == 200
                     return {"ok": ok, "status": resp.status_code,
                             "detail": "anahtar gecerli" if ok else resp.text[:200]}
                 if provider == "gemini":
                     base = (r["base_url"] or "https://generativelanguage.googleapis.com").rstrip("/")
                     resp = await client.get(f"{base}/v1beta/models",
-                                            headers={"x-goog-api-key": r["token"]})
+                                            headers={"x-goog-api-key": token})
                     if resp.status_code != 200:
                         return {"ok": False, "status": resp.status_code, "detail": resp.text[:200]}
                     names = [m.get("name", "") for m in resp.json().get("models", [])]

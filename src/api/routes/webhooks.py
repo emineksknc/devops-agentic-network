@@ -13,6 +13,7 @@ from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Request
 
 from src.api import db
 from src.api.routes.runs import execute_run
+from src.core import secrets as secrets_mod
 
 logger = logging.getLogger("api.webhooks")
 router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
@@ -44,7 +45,7 @@ async def github_push(
         conns = conn.execute(
             "SELECT * FROM connections WHERE kind='github' AND webhook_secret <> ''"
         ).fetchall()
-        matched = _match_secret(payload, signature, [(c["id"], c["webhook_secret"]) for c in conns])
+        matched = _match_secret(payload, signature, [(c["id"], secrets_mod.decrypt(c["webhook_secret"])) for c in conns])
         if not matched:
             raise HTTPException(401, "webhook imzasi gecersiz veya secret kayitli degil")
     if event and event != "push":
