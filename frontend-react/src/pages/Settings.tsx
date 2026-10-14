@@ -396,25 +396,39 @@ export function Settings() {
               </div>
             </>
           )}
-          <Field label="Token (boş = değişmez)">
+          <div className="block mb-3">
+            <span className="flex items-center justify-between text-xs mb-1">
+              <span className="text-muted">Token (boş = değişmez)</span>
+              {hasSecrets.token ? (
+                <span style={{ color: "#10b981" }}>● Kayıtlı</span>
+              ) : (
+                <span className="text-muted">○ Kayıtlı değil</span>
+              )}
+            </span>
             <input
               className="input font-mono"
               type="password"
               value={form.token}
-              placeholder={hasSecrets.token ? "••••••••" : ""}
               onChange={(e) => set("token", e.target.value)}
             />
-          </Field>
+          </div>
           {form.kind === "github" && (
-            <Field label="Webhook secret (boş = değişmez)">
+            <div className="block mb-3">
+              <span className="flex items-center justify-between text-xs mb-1">
+                <span className="text-muted">Webhook secret (boş = değişmez)</span>
+                {hasSecrets.secret ? (
+                  <span style={{ color: "#10b981" }}>● Kayıtlı</span>
+                ) : (
+                  <span className="text-muted">○ Kayıtlı değil</span>
+                )}
+              </span>
               <input
                 className="input font-mono"
                 type="password"
                 value={form.webhook_secret}
-                placeholder={hasSecrets.secret ? "••••••••" : ""}
                 onChange={(e) => set("webhook_secret", e.target.value)}
               />
-            </Field>
+            </div>
           )}
           <label className="flex items-center gap-2 text-xs text-muted mb-4">
             <input
