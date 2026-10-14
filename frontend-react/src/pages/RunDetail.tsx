@@ -164,7 +164,7 @@ export function RunDetail() {
               )}
               <StatusBadge status={u.review_status === "FAILED" ? "failed" : u.review_status === "MISMATCH" ? "mismatch" : "success"} />
               {(u.jira_ids || []).map((t) => (
-                <Chip key={t} href={ticketUrl(run.jira_base_url, t) || undefined}>{t}</Chip>
+                <Chip key={t} href={ticketUrl(run.jira_base_url, t) || undefined} tone="jira">{t}</Chip>
               ))}
             </div>
             <div className="text-sm font-semibold">{u.message}</div>
@@ -185,7 +185,7 @@ export function RunDetail() {
                   <span className="font-mono">?</span>
                 )}
               </div>
-              {Object.entries(u.jira_people || {}).map(([tid, p]) => (
+              {Object.entries(u.jira_people || {}).map(([tid]) => (
                 <div key={tid} className="flex items-center gap-1.5">
                   <JiraMark />
                   {ticketUrl(run.jira_base_url, tid) ? (
@@ -201,9 +201,6 @@ export function RunDetail() {
                   ) : (
                     <span className="font-mono">{tid}</span>
                   )}
-                  <span className="font-mono" title="oluşturan → atanan">
-                    {p.creator || "?"} → {p.assignee || "?"}
-                  </span>
                 </div>
               ))}
             </div>

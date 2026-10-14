@@ -24,12 +24,19 @@ export function StatusBadge({ status }: { status?: string | null }) {
   );
 }
 
-export function Chip({ children, href }: { children: React.ReactNode; href?: string }) {
-  const style = {
-    background: "#0f172a",
-    border: "1px solid #334155",
-    color: "#94a3b8",
-  } as const;
+export function Chip({ children, href, tone }: { children: React.ReactNode; href?: string; tone?: "jira" }) {
+  const style =
+    tone === "jira"
+      ? {
+          background: "rgba(0,82,204,.14)",
+          border: "1px solid rgba(0,82,204,.55)",
+          color: "#4c9aff",
+        }
+      : {
+          background: "#0f172a",
+          border: "1px solid #334155",
+          color: "#94a3b8",
+        };
   if (href) {
     return (
       <a
