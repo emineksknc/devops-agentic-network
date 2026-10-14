@@ -54,9 +54,11 @@ export function Agents() {
                 <b className="text-sm">
                   <span style={{ color: a.enabled ? "#10b981" : "#64748b" }}>●</span> {a.name}
                 </b>
-                <button className="text-xs text-accent-soft" onClick={() => toggle(a)} disabled={!isAdmin()} title={isAdmin() ? "" : "Admin yetkisi gerekir"}>
-                  {a.enabled ? "Kapat" : "Aç"}
-                </button>
+                {isAdmin() && (
+                  <button className="text-xs text-accent-soft" onClick={() => toggle(a)}>
+                    {a.enabled ? "Kapat" : "Aç"}
+                  </button>
+                )}
               </div>
               <div className="text-xs text-muted">
                 {a.enabled ? "Aktif" : "Devre dışı (akışta atlanır)"}

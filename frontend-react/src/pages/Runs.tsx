@@ -88,9 +88,11 @@ export function Runs() {
           <h1 className="text-xl font-bold">Çalıştırmalar</h1>
           <p className="text-sm text-muted">Otonom ajan çalıştırmaları ve doğrulama süreçleri</p>
         </div>
-        <button className="btn-primary" onClick={() => setShowNew(true)} disabled={!canApprove()} title={canApprove() ? "" : "Run başlatmak için approver yetkisi gerekir"}>
-          + Yeni Run Başlat
-        </button>
+        {canApprove() && (
+          <button className="btn-primary" onClick={() => setShowNew(true)}>
+            + Yeni Run Başlat
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

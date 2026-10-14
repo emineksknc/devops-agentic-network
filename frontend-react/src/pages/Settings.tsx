@@ -155,9 +155,11 @@ export function Settings() {
           <h1 className="text-xl font-bold">Bağlantılar</h1>
           <p className="text-sm text-muted">Tokenlar maskeli saklanır, asla listelenmez.</p>
         </div>
-        <button className="btn-primary" onClick={openNew} disabled={!isAdmin()} title={isAdmin() ? "" : "Admin yetkisi gerekir"}>
-          + Yeni Bağlantı
-        </button>
+        {isAdmin() && (
+          <button className="btn-primary" onClick={openNew}>
+            + Yeni Bağlantı
+          </button>
+        )}
       </div>
 
       {groups.map(([kind, label]) => (
@@ -205,7 +207,11 @@ export function Settings() {
           <b className="text-sm">Secret redaksiyonu</b>
           <div className="text-xs text-muted">LLM'e giden diff'lerdeki anahtarlar maskelenir.</div>
         </div>
-        <input type="checkbox" checked={redact} disabled={!isAdmin()} onChange={(e) => toggleRedact(e.target.checked)} />
+        {isAdmin() ? (
+          <input type="checkbox" checked={redact} onChange={(e) => toggleRedact(e.target.checked)} />
+        ) : (
+          <span className="text-xs text-muted">{redact ? "Açık" : "Kapalı"}</span>
+        )}
       </div>
 
       {isAdmin() && users.length > 0 && (
