@@ -1,5 +1,6 @@
 """Baglanti envanteri: birden fazla GitHub org / Jira sitesi / LLM.
 Token'lar Fernet ile sifreli saklanir (src/core/secrets); API maskeli doner."""
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -8,6 +9,8 @@ from src.api import db
 from src.api.schemas import ConnectionIn, ConnectionOut
 from src.core import secrets as secrets_mod
 from src.core.auth import require_roles, get_current_user
+
+logger = logging.getLogger("api.connections")
 
 router = APIRouter(prefix="/api/connections", tags=["connections"], dependencies=[Depends(get_current_user)])
 
@@ -138,6 +141,24 @@ async def toggle_connection(conn_id: str, _admin: dict = Depends(require_roles("
         )
         r = db.row_to_dict(conn.execute("SELECT * FROM connections WHERE id=?", (conn_id,)).fetchone())
     return _to_out(r)
+
+
+@router.get("/{conn_id}/secret")
+async def reveal_secret(
+    conn_id: str, field: str = "token",
+    _admin: dict = Depends(require_roles("admin")),
+) -> dict:
+    """Kayitli secret'i TEK SEFERLIK acar (admin'e ozel). Kullanim loga duser;
+    liste/get uclari maskeli kalmaya devam eder."""
+    if field not in ("token", "webhook_secret"):
+        raise HTTPException(400, "alan token/webhook_secret olmali")
+    with db.connect() as conn:
+        r = db.row_to_dict(conn.execute("SELECT * FROM connections WHERE id=?", (conn_id,)).fetchone())
+    if not r:
+        raise HTTPException(404, "baglanti bulunamadi")
+    logger.warning("Secret goruntulendi: conn=%s field=%s admin=%s",
+                   conn_id, field, _admin.get("username", "?"))
+    return {"value": secrets_mod.decrypt(r[field] or "")}
 
 
 @router.post("/{conn_id}/test")

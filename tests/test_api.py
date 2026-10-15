@@ -207,6 +207,20 @@ def test_run_list_verdict_flags(client):
     assert row["blocked_count"] == 2
 
 
+def test_secret_reveal_is_admin_only(client):
+    admin = _admin_headers(client)
+    viewer = _auth_headers(client, "eleman", "guclu-parola-2")
+    body = {"name": "GH", "kind": "github", "base_url": "", "owner": "o", "email": "",
+            "token": "acilsin-mi", "project_key": "", "provider": "", "model": "",
+            "temperature": 0.3, "max_tokens": 2048, "webhook_secret": "", "is_default": False}
+    cid = client.post("/api/connections", json=body, headers=admin).json()["id"]
+    assert client.get(f"/api/connections/{cid}/secret", headers=BAD).status_code == 401
+    assert client.get(f"/api/connections/{cid}/secret", headers=viewer).status_code == 403
+    assert client.get(f"/api/connections/{cid}/secret?field=yanlis", headers=admin).status_code == 400
+    got = client.get(f"/api/connections/{cid}/secret", headers=admin).json()
+    assert got["value"] == "acilsin-mi"
+
+
 def test_test_endpoint_stamps_latency(client):
     admin = _admin_headers(client)
     body = {"name": "LL", "kind": "llm", "base_url": "http://127.0.0.1:9", "owner": "", "email": "",

@@ -34,6 +34,7 @@ cd frontend-react; npm run build; cd ..
 ## Token yonetimi (UI)
 
 * Tokenlar yalnizca Ayarlar sayfasindan girilir (DB'de sifreli, API'de maskeli).
+  Tek istisna: admin "Göster"e basarsa tek seferlik acar (kullanim loga duser).
 * **Anahtar yedegi:** `data/secret.key` (veya `DAN_SECRET_KEY`) kaybolursa kayitli
   token'lar COZULEMEZ. Dosyayi yedekle, repoya koyma, kimseyle paylasma.
 * Test butonu once kaydeder, sonra dener; sonuc kalici satirda yazar.
